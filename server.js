@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -6,9 +7,38 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const cors = require('cors');
+const { body, validationResult } = require('express-validator');
+const compression = require('compression');
+const morgan = require('morgan');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Security middleware
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            fontSrc: ["'self'"],
+            connectSrc: ["'self'"]
+        }
+    }
+}));
+
+// CORS configuration
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    credentials: true
+}));
+
+// Compression and logging
+app.use(compression());
+app.use(morgan('combined'));
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -77,18 +107,37 @@ app.set('view engine', 'ejs');
 
 // Session configuration
 app.use(session({
-    secret: 'your-secret-key-change-this-in-production',
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+    name: 'sessionId', // Don't use default session name
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        httpOnly: true, // Prevent XSS
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'strict' // CSRF protection
+    }
 }));
 
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // limit each IP to 5 requests per windowMs
-    message: 'Too many login attempts, please try again later.'
+    message: { error: 'Too many login attempts, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false
 });
+
+// General rate limiting
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+app.use(generalLimiter);
 
 // File upload configuration
 const storage = multer.diskStorage({
@@ -103,17 +152,24 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { 
+        fileSize: 5 * 1024 * 1024, // 5MB limit (reduced for security)
+        files: 1 // Only one file at a time
+    },
     fileFilter: (req, file, cb) => {
-        // Allow images and common file types
-        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
+        // Stricter file type validation
+        const allowedMimes = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+            'application/pdf', 'text/plain',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+        const allowedExts = /\.(jpeg|jpg|png|gif|pdf|txt|doc|docx)$/i;
         
-        if (mimetype && extname) {
+        if (allowedMimes.includes(file.mimetype) && allowedExts.test(file.originalname)) {
             return cb(null, true);
         } else {
-            cb(new Error('Only images and documents are allowed!'));
+            cb(new Error('File type not allowed. Only images, PDFs, and documents are permitted.'));
         }
     }
 });
@@ -136,7 +192,24 @@ app.get('/login', (req, res) => {
     res.render('login', { error: null });
 });
 
-app.post('/login', loginLimiter, (req, res) => {
+// Input validation middleware
+const loginValidation = [
+    body('username')
+        .trim()
+        .isLength({ min: 3, max: 50 })
+        .matches(/^[a-zA-Z0-9_]+$/)
+        .withMessage('Username must be 3-50 characters and contain only letters, numbers, and underscores'),
+    body('password')
+        .isLength({ min: 6, max: 128 })
+        .withMessage('Password must be 6-128 characters long')
+];
+
+app.post('/login', loginLimiter, loginValidation, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.render('login', { error: 'Invalid input format' });
+    }
+    
     const { username, password } = req.body;
     
     db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
@@ -183,12 +256,28 @@ app.get('/dashboard', requireAuth, (req, res) => {
     });
 });
 
-// Checklist routes
-app.post('/checklist', requireAuth, (req, res) => {
+// Checklist routes with validation
+const checklistValidation = [
+    body('title')
+        .trim()
+        .isLength({ min: 1, max: 200 })
+        .escape()
+        .withMessage('Title must be 1-200 characters')
+];
+
+app.post('/checklist', requireAuth, checklistValidation, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.redirect('/dashboard?error=Invalid checklist title');
+    }
+    
     const { title } = req.body;
     const userId = req.session.userId;
     
     db.run('INSERT INTO checklists (user_id, title) VALUES (?, ?)', [userId, title], (err) => {
+        if (err) {
+            return res.redirect('/dashboard?error=Failed to create checklist');
+        }
         res.redirect('/dashboard');
     });
 });
@@ -212,13 +301,34 @@ app.post('/checklist/:id/delete', requireAuth, (req, res) => {
     });
 });
 
-// Notes routes
-app.post('/notes', requireAuth, (req, res) => {
+// Notes routes with validation
+const notesValidation = [
+    body('title')
+        .trim()
+        .isLength({ min: 1, max: 200 })
+        .escape()
+        .withMessage('Title must be 1-200 characters'),
+    body('content')
+        .trim()
+        .isLength({ max: 10000 })
+        .escape()
+        .withMessage('Content must be less than 10000 characters')
+];
+
+app.post('/notes', requireAuth, notesValidation, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.redirect('/dashboard?error=Invalid note data');
+    }
+    
     const { title, content } = req.body;
     const userId = req.session.userId;
     
     db.run('INSERT INTO notes (user_id, title, content) VALUES (?, ?, ?)', 
            [userId, title, content], (err) => {
+        if (err) {
+            return res.redirect('/dashboard?error=Failed to create note');
+        }
         res.redirect('/dashboard');
     });
 });

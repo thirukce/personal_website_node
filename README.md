@@ -46,9 +46,10 @@ http://localhost:3000
 - **Backend**: Node.js with Express
 - **Database**: SQLite3 for data persistence
 - **Authentication**: bcryptjs for password hashing, express-session for sessions
-- **File Uploads**: Multer with file type validation
+- **File Uploads**: Multer 2.0 with strict file type validation
 - **Frontend**: EJS templating with modern CSS and JavaScript
-- **Security**: Rate limiting, input validation, secure file handling
+- **Security**: Helmet, rate limiting, input validation, CORS, compression, logging
+- **Validation**: express-validator for input sanitization and validation
 
 ## File Structure
 
@@ -66,12 +67,19 @@ http://localhost:3000
 
 ## Security Features
 
-- Password hashing with bcryptjs
-- Session-based authentication
-- Rate limiting on login attempts
-- File type validation for uploads
-- SQL injection protection with parameterized queries
-- CSRF protection through session validation
+- **Enhanced Security Headers**: Helmet middleware with CSP, XSS protection
+- **Password Security**: bcryptjs hashing with secure session management
+- **Rate Limiting**: Login attempts (5/15min) and general requests (100/15min)
+- **Input Validation**: express-validator with sanitization and escaping
+- **File Upload Security**: Strict MIME type validation, 5MB limit, single file uploads
+- **SQL Injection Protection**: Parameterized queries throughout
+- **CSRF Protection**: SameSite cookies and secure session configuration
+- **XSS Prevention**: Input escaping and Content Security Policy
+- **CORS Configuration**: Configurable allowed origins
+- **Secure Cookies**: HttpOnly, Secure (HTTPS), and SameSite attributes
+- **Logging**: Morgan middleware for security monitoring
+
+See [SECURITY.md](SECURITY.md) for complete security documentation.
 
 ## Customization
 
