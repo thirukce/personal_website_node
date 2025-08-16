@@ -203,12 +203,12 @@
 <body>
     <header>
         <nav class="container">
-            <a href="/" class="logo">
+            <a href="<%= basePath %>/" class="logo">
                 <i class="fas fa-user-circle"></i> Personal Hub
             </a>
             <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/login">Login</a></li>
+                <li><a href="<%= basePath %>/">Home</a></li>
+                <li><a href="<%= basePath %>/login">Login</a></li>
             </ul>
         </nav>
     </header>
@@ -218,7 +218,7 @@
             <div class="hero-content">
                 <h1>Welcome to My Personal Hub</h1>
                 <p>A secure, private space to manage your tasks, notes, and files with style and efficiency.</p>
-                <a href="/login" class="cta-button">
+                <a href="<%= basePath %>/login" class="cta-button">
                     <i class="fas fa-sign-in-alt"></i> Access Dashboard
                 </a>
             </div>

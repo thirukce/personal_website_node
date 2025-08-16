@@ -258,7 +258,7 @@
             <div class="welcome">
                 <i class="fas fa-user-circle"></i> Welcome, <%= username %>!
             </div>
-            <a href="/logout" class="logout-btn">
+            <a href="<%= basePath %>/logout" class="logout-btn">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </a>
         </div>
@@ -277,7 +277,7 @@
                     </button>
                 </div>
 
-                <form id="checklist-form" class="hidden" method="POST" action="/checklist">
+                <form id="checklist-form" class="hidden" method="POST" action="<%= basePath %>/checklist">
                     <div class="form-group">
                         <input type="text" name="title" placeholder="Enter task title..." required>
                     </div>
@@ -291,12 +291,12 @@
                         <div class="checklist-item <%= item.completed ? 'completed' : '' %>">
                             <span><%= item.title %></span>
                             <div class="item-actions">
-                                <form method="POST" action="/checklist/<%= item.id %>/toggle" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/toggle" style="display: inline;">
                                     <button type="submit" class="action-btn toggle-btn">
                                         <i class="fas fa-<%= item.completed ? 'undo' : 'check' %>"></i>
                                     </button>
                                 </form>
-                                <form method="POST" action="/checklist/<%= item.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/delete" style="display: inline;">
                                     <button type="submit" class="action-btn delete-btn" onclick="return confirm('Delete this task?')">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -323,7 +323,7 @@
                     </button>
                 </div>
 
-                <form id="notes-form" class="hidden" method="POST" action="/notes">
+                <form id="notes-form" class="hidden" method="POST" action="<%= basePath %>/notes">
                     <div class="form-group">
                         <input type="text" name="title" placeholder="Note title..." required>
                     </div>
@@ -346,7 +346,7 @@
                                 </div>
                             </div>
                             <div class="item-actions">
-                                <form method="POST" action="/notes/<%= note.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/notes/<%= note.id %>/delete" style="display: inline;">
                                     <button type="submit" class="action-btn delete-btn" onclick="return confirm('Delete this note?')">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -373,7 +373,7 @@
                     </button>
                 </div>
 
-                <form id="upload-form" class="hidden" method="POST" action="/upload" enctype="multipart/form-data">
+                <form id="upload-form" class="hidden" method="POST" action="<%= basePath %>/upload" enctype="multipart/form-data">
                     <div class="upload-area">
                         <label for="file-input" class="upload-label">
                             <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
@@ -399,10 +399,10 @@
                                 </div>
                             </div>
                             <div class="item-actions">
-                                <a href="/download/<%= file.id %>" class="action-btn" style="color: #4CAF50;">
+                                <a href="<%= basePath %>/download/<%= file.id %>" class="action-btn" style="color: #4CAF50;">
                                     <i class="fas fa-download"></i>
                                 </a>
-                                <form method="POST" action="/files/<%= file.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/files/<%= file.id %>/delete" style="display: inline;">
                                     <button type="submit" class="action-btn delete-btn" onclick="return confirm('Delete this file?')">
                                         <i class="fas fa-trash"></i>
                                     </button>

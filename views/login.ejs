@@ -184,7 +184,7 @@
             </div>
         <% } %>
 
-        <form method="POST" action="/login">
+        <form method="POST" action="<%= basePath %>/login">
             <div class="form-group">
                 <label for="username">
                     <i class="fas fa-user"></i> Username
@@ -205,7 +205,7 @@
         </form>
 
         <div class="back-link">
-            <a href="/">
+            <a href="<%= basePath %>/">
                 <i class="fas fa-arrow-left"></i> Back to Home
             </a>
         </div>

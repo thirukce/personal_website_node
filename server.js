@@ -15,6 +15,7 @@ const morgan = require('morgan');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const BASE_PATH = process.env.BASE_PATH || '';
 
 // Security middleware
 app.use(helmet({
@@ -100,10 +101,11 @@ db.serialize(() => {
 });
 
 // Middleware
-app.use(express.static('public'));
+app.use(BASE_PATH, express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // Session configuration
 app.use(session({
@@ -179,17 +181,17 @@ const requireAuth = (req, res, next) => {
     if (req.session.userId) {
         next();
     } else {
-        res.redirect('/login');
+        res.redirect(BASE_PATH + '/login');
     }
 };
 
 // Routes
-app.get('/', (req, res) => {
-    res.render('index');
+app.get(BASE_PATH + '/', (req, res) => {
+    res.render('index', { basePath: BASE_PATH });
 });
 
-app.get('/login', (req, res) => {
-    res.render('login', { error: null });
+app.get(BASE_PATH + '/login', (req, res) => {
+    res.render('login', { error: null, basePath: BASE_PATH });
 });
 
 // Input validation middleware
@@ -204,7 +206,7 @@ const loginValidation = [
         .withMessage('Password must be 6-128 characters long')
 ];
 
-app.post('/login', loginLimiter, loginValidation, (req, res) => {
+app.post(BASE_PATH + '/login', loginLimiter, loginValidation, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.render('login', { error: 'Invalid input format' });
@@ -223,16 +225,16 @@ app.post('/login', loginLimiter, loginValidation, (req, res) => {
         
         req.session.userId = user.id;
         req.session.username = user.username;
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
-app.get('/logout', (req, res) => {
+app.get(BASE_PATH + '/logout', (req, res) => {
     req.session.destroy();
-    res.redirect('/');
+    res.redirect(BASE_PATH + '/');
 });
 
-app.get('/dashboard', requireAuth, (req, res) => {
+app.get(BASE_PATH + '/dashboard', requireAuth, (req, res) => {
     // Get user's checklists, notes, and files
     const userId = req.session.userId;
     
@@ -249,7 +251,8 @@ app.get('/dashboard', requireAuth, (req, res) => {
                     username: req.session.username,
                     checklists: checklists,
                     notes: notes,
-                    files: files
+                    files: files,
+                    basePath: BASE_PATH
                 });
             });
         });
@@ -265,10 +268,10 @@ const checklistValidation = [
         .withMessage('Title must be 1-200 characters')
 ];
 
-app.post('/checklist', requireAuth, checklistValidation, (req, res) => {
+app.post(BASE_PATH + '/checklist', requireAuth, checklistValidation, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.redirect('/dashboard?error=Invalid checklist title');
+        return res.redirect(BASE_PATH + '/dashboard?error=Invalid checklist title');
     }
     
     const { title } = req.body;
@@ -276,28 +279,28 @@ app.post('/checklist', requireAuth, checklistValidation, (req, res) => {
     
     db.run('INSERT INTO checklists (user_id, title) VALUES (?, ?)', [userId, title], (err) => {
         if (err) {
-            return res.redirect('/dashboard?error=Failed to create checklist');
+            return res.redirect(BASE_PATH + '/dashboard?error=Failed to create checklist');
         }
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
-app.post('/checklist/:id/toggle', requireAuth, (req, res) => {
+app.post(BASE_PATH + '/checklist/:id/toggle', requireAuth, (req, res) => {
     const checklistId = req.params.id;
     const userId = req.session.userId;
     
     db.run('UPDATE checklists SET completed = NOT completed WHERE id = ? AND user_id = ?', 
            [checklistId, userId], (err) => {
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
-app.post('/checklist/:id/delete', requireAuth, (req, res) => {
+app.post(BASE_PATH + '/checklist/:id/delete', requireAuth, (req, res) => {
     const checklistId = req.params.id;
     const userId = req.session.userId;
     
     db.run('DELETE FROM checklists WHERE id = ? AND user_id = ?', [checklistId, userId], (err) => {
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
@@ -315,10 +318,10 @@ const notesValidation = [
         .withMessage('Content must be less than 10000 characters')
 ];
 
-app.post('/notes', requireAuth, notesValidation, (req, res) => {
+app.post(BASE_PATH + '/notes', requireAuth, notesValidation, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.redirect('/dashboard?error=Invalid note data');
+        return res.redirect(BASE_PATH + '/dashboard?error=Invalid note data');
     }
     
     const { title, content } = req.body;
@@ -327,25 +330,25 @@ app.post('/notes', requireAuth, notesValidation, (req, res) => {
     db.run('INSERT INTO notes (user_id, title, content) VALUES (?, ?, ?)', 
            [userId, title, content], (err) => {
         if (err) {
-            return res.redirect('/dashboard?error=Failed to create note');
+            return res.redirect(BASE_PATH + '/dashboard?error=Failed to create note');
         }
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
-app.post('/notes/:id/delete', requireAuth, (req, res) => {
+app.post(BASE_PATH + '/notes/:id/delete', requireAuth, (req, res) => {
     const noteId = req.params.id;
     const userId = req.session.userId;
     
     db.run('DELETE FROM notes WHERE id = ? AND user_id = ?', [noteId, userId], (err) => {
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
 // File upload routes
-app.post('/upload', requireAuth, upload.single('file'), (req, res) => {
+app.post(BASE_PATH + '/upload', requireAuth, upload.single('file'), (req, res) => {
     if (!req.file) {
-        return res.redirect('/dashboard?error=No file selected');
+        return res.redirect(BASE_PATH + '/dashboard?error=No file selected');
     }
     
     const userId = req.session.userId;
@@ -353,11 +356,11 @@ app.post('/upload', requireAuth, upload.single('file'), (req, res) => {
     
     db.run('INSERT INTO files (user_id, filename, original_name, file_path, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
            [userId, filename, originalname, filePath, size, mimetype], (err) => {
-        res.redirect('/dashboard');
+        res.redirect(BASE_PATH + '/dashboard');
     });
 });
 
-app.get('/download/:id', requireAuth, (req, res) => {
+app.get(BASE_PATH + '/download/:id', requireAuth, (req, res) => {
     const fileId = req.params.id;
     const userId = req.session.userId;
     
@@ -371,7 +374,7 @@ app.get('/download/:id', requireAuth, (req, res) => {
     });
 });
 
-app.post('/files/:id/delete', requireAuth, (req, res) => {
+app.post(BASE_PATH + '/files/:id/delete', requireAuth, (req, res) => {
     const fileId = req.params.id;
     const userId = req.session.userId;
     
@@ -382,10 +385,10 @@ app.post('/files/:id/delete', requireAuth, (req, res) => {
             
             // Delete from database
             db.run('DELETE FROM files WHERE id = ? AND user_id = ?', [fileId, userId], (err) => {
-                res.redirect('/dashboard');
+                res.redirect(BASE_PATH + '/dashboard');
             });
         } else {
-            res.redirect('/dashboard');
+            res.redirect(BASE_PATH + '/dashboard');
         }
     });
 });
