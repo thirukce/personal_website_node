@@ -19,27 +19,21 @@ A beautiful, secure personal website featuring a public homepage and private aut
 - **Username**: `admin`
 - **Password**: `admin123`
 
-## Installation
+## Local Development Setup
 
 1. Install dependencies:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
-2. Start the server:
-```bash
-npm start
-```
+2. Start the development server with auto-restart:
+   ```bash
+   npm run dev
+   ```
 
-3. For development with auto-restart:
-```bash
-npm run dev
-```
+## Deployment
 
-4. Open your browser and navigate to:
-```
-http://localhost:3000
-```
+For production deployment on an Ubuntu server, please follow the detailed instructions in INSTALL.md.
 
 ## Technology Stack
 
