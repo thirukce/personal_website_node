@@ -137,17 +137,17 @@ Secure your application files, especially the `.env` file and the database.
 
 ```bash
 # Set ownership to your user and the web server group (www-data)
-sudo chown -R $USER:www-data /var/www/personal-website-admin
+sudo chown -R $USER:www-data /var/www/mythiru.com
 
 # Set secure permissions for the application directory
-sudo chmod -R 750 /var/www/personal-website-admin
+sudo chmod -R 750 /var/www/mythiru.com
 
 # Allow the web server to write to the uploads directory
-sudo chmod -R 770 /var/www/personal-website-admin/uploads
+sudo chmod -R 770 /var/www/mythiru.com/uploads
 
 # Protect your environment file and database from being read by others
-sudo chmod 600 /var/www/personal-website-admin/.env
-sudo chmod 600 /var/www/personal-website-admin/personal_website.db
+sudo chmod 600 /var/www/mythiru.com/.env
+sudo chmod 600 /var/www/mythiru.com/personal_website.db
 ```
 
 ### Step 8: Secure Your Server (Firewall & SSL)
@@ -187,16 +187,16 @@ Here are some useful commands for managing your running application.
 
 ```bash
 # View application status
-pm2 status personal-website-admin
+pm2 status mythiru.com
 
 # View live logs
-pm2 logs personal-website-admin
+pm2 logs mythiru.com
 
 # Restart the application
-pm2 restart personal-website-admin
+pm2 restart mythiru.com
 
 # Stop the application
-pm2 stop personal-website-admin
+pm2 stop mythiru.com
 ```
 
 ## Updating the Application
