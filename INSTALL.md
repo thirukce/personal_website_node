@@ -119,7 +119,7 @@ Now, start the application using PM2 and configure it to launch automatically on
 
 ```bash
 # Ensure you are in the application directory
-cd /var/www/personal-website-admin
+cd /var/www/mythiru.com
 
 # Start the application using the ecosystem file
 pm2 start ecosystem.config.js --env production
@@ -170,7 +170,7 @@ sudo certbot --apache -d www.mythiru.com
 
 ### You're Done!
 
-Your admin panel should now be accessible at **`https://www.mythiru.com/admin`**.
+Your application should now be accessible at **`https://www.mythiru.com`**. You can log in at `https://www.mythiru.com/login`.
 
 **Default login:**
 *   **Username**: `admin`
@@ -204,8 +204,8 @@ pm2 stop mythiru.com
 To update your application to the latest version from GitHub:
 
 ```bash
-cd /var/www/personal-website-admin
+cd /var/www/mythiru.com
 git pull origin main
 npm install --production
-pm2 restart personal-website-admin
+pm2 restart mythiru.com
 ```

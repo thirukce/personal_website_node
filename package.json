@@ -13,6 +13,7 @@
   "dependencies": {
     "express": "^4.19.2",
     "express-session": "^1.18.0",
+    "connect-sqlite3": "^0.9.13",
     "bcryptjs": "^2.4.3",
     "multer": "^2.0.0-rc.4",
     "sqlite3": "^5.1.7",

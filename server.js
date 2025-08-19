@@ -1,11 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const util = require('util');
+const fsPromises = require('fs').promises;
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -49,6 +52,11 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Database setup
 const db = new sqlite3.Database('personal_website.db');
+
+// Promisify db methods for async/await support
+const dbRun = util.promisify(db.run.bind(db));
+const dbGet = util.promisify(db.get.bind(db));
+const dbAll = util.promisify(db.all.bind(db));
 
 // Initialize database tables
 db.serialize(() => {
@@ -111,6 +119,11 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
     resave: false,
+    store: new SQLiteStore({
+        db: 'personal_website.db', // Use the same database file
+        dir: __dirname, // Store db in the project root
+        table: 'sessions' // Optional: name of the sessions table
+    }),
     saveUninitialized: false,
     name: 'sessionId', // Don't use default session name
     cookie: { 
@@ -234,29 +247,27 @@ app.get(BASE_PATH + '/logout', (req, res) => {
     res.redirect(BASE_PATH + '/');
 });
 
-app.get(BASE_PATH + '/dashboard', requireAuth, (req, res) => {
-    // Get user's checklists, notes, and files
-    const userId = req.session.userId;
-    
-    db.all('SELECT * FROM checklists WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, checklists) => {
-        if (err) checklists = [];
-        
-        db.all('SELECT * FROM notes WHERE user_id = ? ORDER BY updated_at DESC', [userId], (err, notes) => {
-            if (err) notes = [];
-            
-            db.all('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, files) => {
-                if (err) files = [];
-                
-                res.render('dashboard', { 
-                    username: req.session.username,
-                    checklists: checklists,
-                    notes: notes,
-                    files: files,
-                    basePath: BASE_PATH
-                });
-            });
+app.get(BASE_PATH + '/dashboard', requireAuth, async (req, res, next) => {
+    try {
+        const userId = req.session.userId;
+
+        // Fetch all data in parallel for better performance
+        const [checklists, notes, files] = await Promise.all([
+            dbAll('SELECT * FROM checklists WHERE user_id = ? ORDER BY created_at DESC', [userId]),
+            dbAll('SELECT * FROM notes WHERE user_id = ? ORDER BY updated_at DESC', [userId]),
+            dbAll('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', [userId])
+        ]);
+
+        res.render('dashboard', {
+            username: req.session.username,
+            checklists: checklists || [],
+            notes: notes || [],
+            files: files || [],
+            basePath: BASE_PATH
         });
-    });
+    } catch (err) {
+        next(err); // Pass errors to the global error handler
+    }
 });
 
 // Checklist routes with validation
@@ -374,23 +385,28 @@ app.get(BASE_PATH + '/download/:id', requireAuth, (req, res) => {
     });
 });
 
-app.post(BASE_PATH + '/files/:id/delete', requireAuth, (req, res) => {
+app.post(BASE_PATH + '/files/:id/delete', requireAuth, async (req, res) => {
     const fileId = req.params.id;
     const userId = req.session.userId;
-    
-    db.get('SELECT * FROM files WHERE id = ? AND user_id = ?', [fileId, userId], (err, file) => {
+
+    try {
+        const file = await dbGet('SELECT * FROM files WHERE id = ? AND user_id = ?', [fileId, userId]);
         if (file) {
-            // Delete physical file
-            fs.unlink(path.join(__dirname, file.file_path), () => {});
-            
-            // Delete from database
-            db.run('DELETE FROM files WHERE id = ? AND user_id = ?', [fileId, userId], (err) => {
-                res.redirect(BASE_PATH + '/dashboard');
-            });
-        } else {
-            res.redirect(BASE_PATH + '/dashboard');
+            // Delete physical file first, and wait for it to complete
+            await fsPromises.unlink(path.join(__dirname, file.file_path));
+            // Then delete from database
+            await dbRun('DELETE FROM files WHERE id = ? AND user_id = ?', [fileId, userId]);
         }
-    });
+        res.redirect(BASE_PATH + '/dashboard');
+    } catch (err) {
+        console.error(`Failed to delete file ${fileId} for user ${userId}:`, err);
+        res.redirect(BASE_PATH + '/dashboard?error=Failed+to+delete+file');
+    }
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something went wrong!');
 });
 
 app.listen(PORT, () => {
