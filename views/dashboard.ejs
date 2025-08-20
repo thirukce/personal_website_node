@@ -272,7 +272,7 @@
                     <div class="card-title">
                         <i class="fas fa-tasks"></i> My Checklists
                     </div>
-                    <button class="add-btn" onclick="toggleForm('checklist-form')">
+					<button class="add-btn" id="add-task-btn">
                         <i class="fas fa-plus"></i> Add Task
                     </button>
                 </div>
@@ -297,9 +297,9 @@
                                     </button>
                                 </form>
                                 <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/delete" style="display: inline;">
-                                    <button type="submit" class="action-btn delete-btn" onclick="return confirm('Delete this task?')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+									<button type="submit" class="action-btn delete-btn">
+										<i class="fas fa-trash"></i>
+									</button>
                                 </form>
                             </div>
                         </div>
@@ -318,7 +318,7 @@
                     <div class="card-title">
                         <i class="fas fa-sticky-note"></i> My Notes
                     </div>
-                    <button class="add-btn" onclick="toggleForm('notes-form')">
+					<button class="add-btn" id="add-note-btn">
                         <i class="fas fa-plus"></i> Add Note
                     </button>
                 </div>
@@ -347,9 +347,9 @@
                             </div>
                             <div class="item-actions">
                                 <form method="POST" action="<%= basePath %>/notes/<%= note.id %>/delete" style="display: inline;">
-                                    <button type="submit" class="action-btn delete-btn" onclick="return confirm('Delete this note?')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <button type="submit" class="action-btn delete-btn">
+										<i class="fas fa-trash"></i>
+									</button>
                                 </form>
                             </div>
                         </div>
@@ -368,7 +368,7 @@
                     <div class="card-title">
                         <i class="fas fa-folder"></i> My Files
                     </div>
-                    <button class="add-btn" onclick="toggleForm('upload-form')">
+					<button class="add-btn" id="add-file-btn">
                         <i class="fas fa-upload"></i> Upload
                     </button>
                 </div>
@@ -403,9 +403,9 @@
                                     <i class="fas fa-download"></i>
                                 </a>
                                 <form method="POST" action="<%= basePath %>/files/<%= file.id %>/delete" style="display: inline;">
-                                    <button type="submit" class="action-btn delete-btn" onclick="return confirm('Delete this file?')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <button type="submit" class="action-btn delete-btn">
+										<i class="fas fa-trash"></i>
+									</button>
                                 </form>
                             </div>
                         </div>
@@ -420,48 +420,8 @@
         </div>
     </div>
 
-    <script>
-        function toggleForm(formId) {
-            const form = document.getElementById(formId);
-            form.classList.toggle('hidden');
-            if (!form.classList.contains('hidden')) {
-                form.querySelector('input').focus();
-            }
-        }
+    <script src="<%= basePath %>/dashboard.js"></script>
 
-        // File upload drag and drop
-        const uploadArea = document.querySelector('.upload-area');
-        const fileInput = document.getElementById('file-input');
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = '#ffd700';
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                uploadArea.querySelector('.upload-label').innerHTML = 
-                    `<i class="fas fa-file" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                     Selected: ${files[0].name}`;
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                uploadArea.querySelector('.upload-label').innerHTML = 
-                    `<i class="fas fa-file" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                     Selected: ${e.target.files[0].name}`;
-            }
-        });
-    </script>
-</body>
+	
+	</body>
 </html>

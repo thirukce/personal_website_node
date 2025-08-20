@@ -102,6 +102,9 @@ Add the following lines inside the `<VirtualHost *:443>` block:
 # Add this inside your <VirtualHost *:443> block for www.mythiru.com
 # This will forward all traffic to your Node.js application
 ProxyPreserveHost On
+# Set the X-Forwarded-Proto header to tell Node.js the original request was HTTPS.
+# This is required for secure cookies to work correctly.
+RequestHeader set X-Forwarded-Proto "https"
 ProxyPass / http://localhost:3000/
 ProxyPassReverse / http://localhost:3000/
 ```

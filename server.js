@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const publicPath = path.join(__dirname, 'public');												  
 const fs = require('fs');
 const util = require('util');
 const fsPromises = require('fs').promises;
@@ -20,19 +21,33 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_PATH = process.env.BASE_PATH || '';
 
+// Tell Express to trust the reverse proxy (Apache)
+// This is crucial for secure cookies to work correctly behind a proxy.
+// '1' means it will trust the first hop from the proxy.
+app.set('trust proxy', 1);												   
+																	   
+														
+						  
+
 // Security middleware
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'", "'unsafe-hashes'"], // Keep this line as is for now
             imgSrc: ["'self'", "data:", "https:"],
-            fontSrc: ["'self'"],
+            fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
             connectSrc: ["'self'"]
         }
     }
 }));
+
+app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy', "script-src 'self' 'unsafe-hashes' 'sha256-QA/FIksfX1sNsodmGrqUEjjFV2RwmHeCgDudLGiBoNM=' 'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU=' 'sha256-cb1s2KXb6Vwrf7gzleZTBAonupdoB+PxWX4XqMsaOCA=' 'sha256-nNIzcrCDgTAbdBswdLX1vTxRHuqvwXKARgmUjSRYEzQ=' 'sha256-an0GuWy3FgNMLNOXAWC0ixNAboyIp4cOn0PeYbPNcV0='");
+    next();
+});
 
 // CORS configuration
 app.use(cors({
@@ -43,6 +58,10 @@ app.use(cors({
 // Compression and logging
 app.use(compression());
 app.use(morgan('combined'));
+
+// Serve static files from the 'public' directory
+app.use(BASE_PATH, express.static(publicPath));												 
+									
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -109,7 +128,6 @@ db.serialize(() => {
 });
 
 // Middleware
-app.use(BASE_PATH, express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set('view engine', 'ejs');
@@ -242,6 +260,7 @@ app.post(BASE_PATH + '/login', loginLimiter, loginValidation, (req, res) => {
     });
 });
 
+
 app.get(BASE_PATH + '/logout', (req, res) => {
     req.session.destroy();
     res.redirect(BASE_PATH + '/');
@@ -356,18 +375,37 @@ app.post(BASE_PATH + '/notes/:id/delete', requireAuth, (req, res) => {
     });
 });
 
-// File upload routes
-app.post(BASE_PATH + '/upload', requireAuth, upload.single('file'), (req, res) => {
-    if (!req.file) {
-        return res.redirect(BASE_PATH + '/dashboard?error=No file selected');
-    }
-    
-    const userId = req.session.userId;
-    const { filename, originalname, path: filePath, size, mimetype } = req.file;
-    
-    db.run('INSERT INTO files (user_id, filename, original_name, file_path, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
-           [userId, filename, originalname, filePath, size, mimetype], (err) => {
-        res.redirect(BASE_PATH + '/dashboard');
+// File upload route with proper error handling
+app.post(BASE_PATH + '/upload', requireAuth, (req, res) => {
+    // This is the correct way to handle multer errors
+    upload.single('file')(req, res, async (err) => {
+        if (err instanceof multer.MulterError) {
+            // A Multer error occurred when uploading.
+            return res.status(400).send(`Multer Error: ${err.message}`);
+        } else if (err) {
+            // An unknown error occurred.
+            // This is where your custom fileFilter error will be passed.
+            return res.status(400).send(`Upload Error: ${err.message}`);
+        }
+
+        // If no file was provided in the request
+        if (!req.file) {
+            return res.status(400).send('No file selected for upload.');
+        }
+
+        const userId = req.session.userId;
+        const { filename, originalname, size, mimetype } = req.file;
+        
+        try {
+            await dbRun('INSERT INTO files (user_id, filename, original_name, file_path, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
+                [userId, filename, originalname, 'uploads/' + filename, size, mimetype]);
+
+            // Respond with a success message that the client's fetch can see
+            res.status(200).send('File uploaded successfully!');
+        } catch (dbErr) {
+            console.error('Database insertion failed:', dbErr);
+            res.status(500).send('Failed to save file to database.');
+        }
     });
 });
 
@@ -411,5 +449,4 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log('Default login: username=admin, password=admin123');
 });
