@@ -16,10 +16,25 @@ const cors = require('cors');
 const { body, validationResult } = require('express-validator');
 const compression = require('compression');
 const morgan = require('morgan');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_PATH = process.env.BASE_PATH || '';
+
+// Environment-driven configuration with defaults
+const DB_PATH = process.env.DB_PATH || 'personal_website.db';
+const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads';
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE, 10) || 5 * 1024 * 1024; // 5MB
+
+const LOGIN_RATE_LIMIT_WINDOW = parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW, 10) || 15 * 60 * 1000; // 15 mins
+const LOGIN_RATE_LIMIT_MAX = parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 5;
+
+const GENERAL_RATE_LIMIT_WINDOW = parseInt(process.env.GENERAL_RATE_LIMIT_WINDOW, 10) || 15 * 60 * 1000; // 15 mins
+const GENERAL_RATE_LIMIT_MAX = parseInt(process.env.GENERAL_RATE_LIMIT_MAX, 10) || 100;
+
+const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE, 10) || 5 * 60 * 1000; // 5 minutes
 
 // Tell Express to trust the reverse proxy (Apache)
 // This is crucial for secure cookies to work correctly behind a proxy.
@@ -64,13 +79,13 @@ app.use(BASE_PATH, express.static(publicPath));
 									
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, UPLOAD_DIR);
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Database setup
-const db = new sqlite3.Database('personal_website.db');
+const db = new sqlite3.Database(DB_PATH);
 
 // Promisify db methods for async/await support
 const dbRun = util.promisify(db.run.bind(db));
@@ -84,8 +99,15 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
+        email TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+
+    // Add email column to existing users table if it doesn't exist.
+    // A proper migration system would be better, but this works for simple cases.
+    db.run("ALTER TABLE users ADD COLUMN email TEXT", (err) => {
+        if (!err) console.log("Added 'email' column to 'users' table.");
+    });
 
     // Checklists table
     db.run(`CREATE TABLE IF NOT EXISTS checklists (
@@ -121,10 +143,30 @@ db.serialize(() => {
         FOREIGN KEY (user_id) REFERENCES users (id)
     )`);
 
-    // Create default admin user (password: admin123)
-    const hashedPassword = bcrypt.hashSync('admin123', 10);
+    // Reminders table
+    db.run(`CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        title TEXT NOT NULL,
+        remind_at DATETIME NOT NULL,
+        recurrence TEXT DEFAULT 'none' NOT NULL, -- 'none', 'daily', 'weekly'
+        notified BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )`);
+
+    // Add recurrence column to reminders table if it doesn't exist.
+    db.run("ALTER TABLE reminders ADD COLUMN recurrence TEXT DEFAULT 'none' NOT NULL", (err) => {
+        if (!err) console.log("Added 'recurrence' column to 'reminders' table.");
+    });
+
+    // Create default admin user (password: XXXX)
+    const hashedPassword = bcrypt.hashSync('Amuthini$001', 10);
     db.run(`INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)`, 
            ['admin', hashedPassword]);
+    
+    // Set a default email for the admin user if not set
+    db.run(`UPDATE users SET email = ? WHERE username = 'admin' AND email IS NULL`, ['admin@example.com']);
 });
 
 // Middleware
@@ -138,7 +180,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
     resave: false,
     store: new SQLiteStore({
-        db: 'personal_website.db', // Use the same database file
+        db: DB_PATH, // Use the database file from config
         dir: __dirname, // Store db in the project root
         table: 'sessions' // Optional: name of the sessions table
     }),
@@ -147,15 +189,15 @@ app.use(session({
     cookie: { 
         secure: process.env.NODE_ENV === 'production', // HTTPS only in production
         httpOnly: true, // Prevent XSS
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: SESSION_MAX_AGE, // e.g., 5 minutes
         sameSite: 'strict' // CSRF protection
     }
 }));
 
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 requests per windowMs
+    windowMs: LOGIN_RATE_LIMIT_WINDOW,
+    max: LOGIN_RATE_LIMIT_MAX,
     message: { error: 'Too many login attempts, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false
@@ -163,8 +205,8 @@ const loginLimiter = rateLimit({
 
 // General rate limiting
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    windowMs: GENERAL_RATE_LIMIT_WINDOW,
+    max: GENERAL_RATE_LIMIT_MAX,
     message: { error: 'Too many requests, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false
@@ -175,7 +217,7 @@ app.use(generalLimiter);
 // File upload configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        cb(null, UPLOAD_DIR + '/');
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -186,7 +228,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: { 
-        fileSize: 5 * 1024 * 1024, // 5MB limit (reduced for security)
+        fileSize: MAX_FILE_SIZE,
         files: 1 // Only one file at a time
     },
     fileFilter: (req, file, cb) => {
@@ -222,7 +264,11 @@ app.get(BASE_PATH + '/', (req, res) => {
 });
 
 app.get(BASE_PATH + '/login', (req, res) => {
-    res.render('login', { error: null, basePath: BASE_PATH });
+    let error = null;
+    if (req.query.reason === 'inactive') {
+        error = 'You have been logged out due to inactivity.';
+    }
+    res.render('login', { error, basePath: BASE_PATH });
 });
 
 // Input validation middleware
@@ -240,18 +286,18 @@ const loginValidation = [
 app.post(BASE_PATH + '/login', loginLimiter, loginValidation, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.render('login', { error: 'Invalid input format' });
+        return res.render('login', { error: 'Invalid input format', basePath: BASE_PATH });
     }
     
     const { username, password } = req.body;
     
     db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
         if (err) {
-            return res.render('login', { error: 'Database error' });
+            return res.render('login', { error: 'Database error', basePath: BASE_PATH });
         }
         
         if (!user || !bcrypt.compareSync(password, user.password)) {
-            return res.render('login', { error: 'Invalid username or password' });
+            return res.render('login', { error: 'Invalid username or password', basePath: BASE_PATH });
         }
         
         req.session.userId = user.id;
@@ -262,26 +308,39 @@ app.post(BASE_PATH + '/login', loginLimiter, loginValidation, (req, res) => {
 
 
 app.get(BASE_PATH + '/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect(BASE_PATH + '/');
+    const reason = req.query.reason;
+    req.session.destroy((err) => {
+        if (err) {
+            console.error("Session destruction error:", err);
+            return res.redirect(BASE_PATH + '/dashboard'); // Stay on dashboard if logout fails
+        }
+        // Redirect to login with a message for inactivity, otherwise to the homepage
+        const redirectPath = reason === 'inactive' ? '/login?reason=inactive' : '/';
+        res.redirect(BASE_PATH + redirectPath);
+    });
 });
 
 app.get(BASE_PATH + '/dashboard', requireAuth, async (req, res, next) => {
     try {
         const userId = req.session.userId;
 
-        // Fetch all data in parallel for better performance
-        const [checklists, notes, files] = await Promise.all([
+        // Fetch all dashboard data in parallel for better performance
+        const [checklists, notes, files, reminders, user] = await Promise.all([
             dbAll('SELECT * FROM checklists WHERE user_id = ? ORDER BY created_at DESC', [userId]),
             dbAll('SELECT * FROM notes WHERE user_id = ? ORDER BY updated_at DESC', [userId]),
-            dbAll('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', [userId])
+            dbAll('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', [userId]),
+            dbAll('SELECT * FROM reminders WHERE user_id = ? ORDER BY remind_at ASC', [userId]),
+            dbGet('SELECT email FROM users WHERE id = ?', [userId])
         ]);
 
         res.render('dashboard', {
             username: req.session.username,
+            userEmail: user?.email,
             checklists: checklists || [],
             notes: notes || [],
             files: files || [],
+            reminders: reminders || [],
+            sessionMaxAge: SESSION_MAX_AGE,
             basePath: BASE_PATH
         });
     } catch (err) {
@@ -375,6 +434,105 @@ app.post(BASE_PATH + '/notes/:id/delete', requireAuth, (req, res) => {
     });
 });
 
+// Reminder routes with validation
+const reminderValidation = [
+    body('title')
+        .trim()
+        .isLength({ min: 1, max: 200 })
+        .escape()
+        .withMessage('Title must be 1-200 characters'),
+    body('remind_at')
+        .isISO8601()
+        .toDate()
+        .withMessage('Invalid date format for reminder.'),
+    body('recurrence')
+        .isIn(['none', 'daily', 'weekly'])
+        .withMessage('Invalid recurrence type.')
+];
+
+app.post(BASE_PATH + '/reminders', requireAuth, reminderValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        console.error('Reminder validation errors:', errors.array());
+        return res.redirect(BASE_PATH + '/dashboard?error=Invalid reminder data');
+    }
+
+    const { title, remind_at, recurrence } = req.body;
+    const userId = req.session.userId;
+
+    try {
+        // Set notified to 0 so it's eligible for the first notification
+        await dbRun('INSERT INTO reminders (user_id, title, remind_at, recurrence, notified) VALUES (?, ?, ?, ?, 0)', 
+            [userId, title, remind_at, recurrence]);
+        res.redirect(BASE_PATH + '/dashboard');
+    } catch (err) {
+        console.error('Failed to create reminder:', err);
+        res.redirect(BASE_PATH + '/dashboard?error=Failed to create reminder');
+    }
+});
+
+app.post(BASE_PATH + '/reminders/:id/delete', requireAuth, async (req, res) => {
+    const reminderId = req.params.id;
+    const userId = req.session.userId;
+
+    try {
+        await dbRun('DELETE FROM reminders WHERE id = ? AND user_id = ?', [reminderId, userId]);
+        res.redirect(BASE_PATH + '/dashboard');
+    } catch (err) {
+        console.error(`Failed to delete reminder ${reminderId}:`, err);
+        res.redirect(BASE_PATH + '/dashboard?error=Failed to delete reminder');
+    }
+});
+
+// Profile route for setting email
+const emailValidation = [
+    body('email')
+        .isEmail()
+        .normalizeEmail({ gmail_remove_dots: false })
+        .withMessage('Please provide a valid email address.')
+];
+
+app.post(BASE_PATH + '/profile/email', requireAuth, emailValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.redirect(BASE_PATH + '/dashboard?error=Invalid email address');
+    }
+
+    const { email } = req.body;
+    const userId = req.session.userId;
+
+    try {
+        await dbRun('UPDATE users SET email = ? WHERE id = ?', [email, userId]);
+        res.redirect(BASE_PATH + '/dashboard?success=Email updated successfully');
+    } catch (err) {
+        console.error('Failed to update email:', err);
+        res.redirect(BASE_PATH + '/dashboard?error=Failed to update email');
+    }
+});
+
+// --- Email and Scheduler Setup ---
+
+// Nodemailer transporter setup using environment variables
+const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT || '587'),
+    secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
+if (process.env.EMAIL_HOST) {
+    transporter.verify().then(() => {
+        console.log('✅ Email server is ready for reminder notifications.');
+    }).catch(err => {
+        console.error('⚠️ Email server configuration error. Reminders will not be sent.', err.message);
+    });
+} else {
+    console.log('ℹ️ Email host not configured. Reminder emails are disabled.');
+}
+
 // File upload route with proper error handling
 app.post(BASE_PATH + '/upload', requireAuth, (req, res) => {
     // This is the correct way to handle multer errors
@@ -398,7 +556,7 @@ app.post(BASE_PATH + '/upload', requireAuth, (req, res) => {
         
         try {
             await dbRun('INSERT INTO files (user_id, filename, original_name, file_path, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
-                [userId, filename, originalname, 'uploads/' + filename, size, mimetype]);
+                [userId, filename, originalname, UPLOAD_DIR + '/' + filename, size, mimetype]);
 
             // Respond with a success message that the client's fetch can see
             res.status(200).send('File uploaded successfully!');
@@ -439,6 +597,64 @@ app.post(BASE_PATH + '/files/:id/delete', requireAuth, async (req, res) => {
     } catch (err) {
         console.error(`Failed to delete file ${fileId} for user ${userId}:`, err);
         res.redirect(BASE_PATH + '/dashboard?error=Failed+to+delete+file');
+    }
+});
+
+// Cron job to check for reminders every minute
+cron.schedule('* * * * *', async () => {
+    // Only run if email is configured
+    if (!process.env.EMAIL_HOST) return;
+
+    try {
+        const now = new Date();
+        // Find reminders that are due and have not been notified yet.
+        const dueReminders = await dbAll(
+            `SELECT r.*, u.email FROM reminders r
+             JOIN users u ON r.user_id = u.id
+             WHERE r.remind_at <= ? AND r.notified = 0 AND u.email IS NOT NULL AND u.email != ''`,
+            [now.toISOString()]
+        );
+
+        for (const reminder of dueReminders) {
+            try {
+                await transporter.sendMail({
+                    from: process.env.EMAIL_FROM || `"Personal Dashboard" <${process.env.EMAIL_USER}>`,
+                    to: reminder.email,
+                    subject: `Reminder: ${reminder.title}`,
+                    text: `This is a reminder for: "${reminder.title}".`,
+                    html: `<p>This is a reminder for: "<b>${reminder.title}</b>".</p>`,
+                });
+                console.log(`Reminder email sent to ${reminder.email} for reminder ID ${reminder.id}`);
+
+                // Handle recurrence
+                if (reminder.recurrence === 'none') {
+                    // For non-recurring reminders, just mark as notified.
+                    await dbRun('UPDATE reminders SET notified = 1 WHERE id = ?', [reminder.id]);
+                } else {
+                    // For recurring reminders, calculate the next date that is in the future.
+                    // This prevents email storms if the server was down.
+                    let nextRemindAt = new Date(reminder.remind_at);
+                    const calculationTime = new Date(); // Use current time for calculation
+
+                    if (reminder.recurrence === 'daily') {
+                        while (nextRemindAt <= calculationTime) {
+                            nextRemindAt.setDate(nextRemindAt.getDate() + 1);
+                        }
+                    } else if (reminder.recurrence === 'weekly') {
+                        while (nextRemindAt <= calculationTime) {
+                            nextRemindAt.setDate(nextRemindAt.getDate() + 7);
+                        }
+                    }
+                    // Update the reminder with the new date and reset `notified` to 0.
+                    await dbRun('UPDATE reminders SET remind_at = ?, notified = 0 WHERE id = ?', [nextRemindAt.toISOString(), reminder.id]);
+                    console.log(`Rescheduled reminder ID ${reminder.id} for ${nextRemindAt.toISOString()}`);
+                }
+            } catch (processErr) {
+                console.error(`Failed to process reminder ${reminder.id}:`, processErr);
+            }
+        }
+    } catch (error) {
+        console.error('Error in reminder cron job:', error);
     }
 });
 

@@ -1,7 +1,7 @@
 {
   "name": "personal-website",
   "version": "1.0.0",
-  "description": "Personal website with authentication and dashboard",
+  "description": "A secure personal dashboard for managing tasks, notes, files, and email reminders.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -24,13 +24,15 @@
     "express-validator": "^7.0.1",
     "compression": "^1.7.4",
     "morgan": "^1.10.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.13"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   },
   "keywords": ["personal", "website", "dashboard", "authentication"],
-  "author": "Your Name",
+  "author": "",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",

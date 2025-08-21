@@ -252,7 +252,7 @@
         }
     </style>
 </head>
-<body>
+<body data-session-max-age="<%= sessionMaxAge %>" data-base-path="<%= basePath %>">
     <header class="header">
         <div class="header-content">
             <div class="welcome">
@@ -417,11 +417,95 @@
                     <% } %>
                 </div>
             </div>
+
+            <!-- Profile & Reminders Section -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-user-cog"></i> Profile & Reminders
+                    </div>
+                </div>
+
+                <!-- Profile Email Form -->
+                <form method="POST" action="<%= basePath %>/profile/email" style="margin-bottom: 2rem;">
+                    <div class="form-group">
+                        <label for="email" style="color: white; display: block; margin-bottom: 0.5rem;">Notification Email</label>
+                        <input type="email" id="email" name="email" value="<%= userEmail || '' %>" placeholder="you@example.com" required>
+                    </div>
+                    <button type="submit" class="submit-btn" style="width: 100%;">
+                        <i class="fas fa-save"></i> Update Email
+                    </button>
+                    <% if (!userEmail) { %>
+                        <p style="color: rgba(255,255,255,0.6); text-align: center; font-size: 0.8rem; margin-top: 0.5rem;">
+                            Set an email to receive reminder notifications.
+                        </p>
+                    <% } %>
+                </form>
+
+                <hr style="border-color: rgba(255,255,255,0.2); margin-bottom: 1.5rem;">
+
+                <!-- Reminders Section -->
+                <div class="card-header" style="padding: 0; margin-bottom: 1rem;">
+                    <div class="card-title" style="font-size: 1.1rem;">
+                        <i class="fas fa-bell"></i> Reminders
+                    </div>
+                    <button class="add-btn" id="add-reminder-btn">
+                        <i class="fas fa-plus"></i> Add Reminder
+                    </button>
+                </div>
+
+                <form id="reminder-form" class="hidden" method="POST" action="<%= basePath %>/reminders">
+                    <div class="form-group">
+                        <input type="text" name="title" placeholder="Reminder title..." required>
+                    </div>
+                    <div class="form-group">
+                        <input type="datetime-local" name="remind_at" required style="color-scheme: dark;">
+                    </div>
+                    <div class="form-group">
+                        <select name="recurrence" style="width: 100%; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 0.9rem;">
+                            <option value="none" style="color: black;">Does not repeat</option>
+                            <option value="daily" style="color: black;">Repeats Daily</option>
+                            <option value="weekly" style="color: black;">Repeats Weekly</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-plus"></i> Add Reminder
+                    </button>
+                </form>
+
+                <div class="reminders-items">
+                    <% reminders.forEach(reminder => { %>
+                        <div class="checklist-item"> <!-- Re-using checklist-item style -->
+                            <div style="flex: 1;">
+                                <span class="<%= reminder.notified ? 'completed' : '' %>"><%= reminder.title %></span>
+                                <div class="file-meta" style="margin-top: 0.25rem;">
+                                    <% if (reminder.recurrence && reminder.recurrence !== 'none') { %>
+                                        <i class="fas fa-sync-alt" title="Recurring"></i> 
+                                        Repeats <%= reminder.recurrence.charAt(0).toUpperCase() + reminder.recurrence.slice(1) %> •
+                                    <% } %>
+                                    <i class="fas fa-clock"></i> 
+                                    Next: <%= new Date(reminder.remind_at).toLocaleString() %>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <form method="POST" action="<%= basePath %>/reminders/<%= reminder.id %>/delete" style="display: inline;">
+                                    <button type="submit" class="action-btn delete-btn">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    <% }); %>
+                    <% if (reminders.length === 0) { %>
+                        <p style="color: rgba(255,255,255,0.6); text-align: center; padding: 2rem 0;">
+                            No upcoming reminders.
+                        </p>
+                    <% } %>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="<%= basePath %>/dashboard.js"></script>
-
-	
-	</body>
+</body>
 </html>
