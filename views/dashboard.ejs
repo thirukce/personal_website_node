@@ -240,6 +240,12 @@
             display: none;
         }
 
+        /* Ensure item lists stack vertically, fixing horizontal layout bugs */
+        .checklist-items, .notes-items, .files-items, .reminders-items {
+            display: flex;
+            flex-direction: column;
+        }
+
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -373,7 +379,7 @@
                     </button>
                 </div>
 
-                <form id="upload-form" class="hidden" method="POST" action="<%= basePath %>/upload" enctype="multipart/form-data">
+                <form id="upload-form" class="hidden" method="POST" action="<%= basePath %>/upload">
                     <div class="upload-area">
                         <label for="file-input" class="upload-label">
                             <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
@@ -475,16 +481,25 @@
 
                 <div class="reminders-items">
                     <% reminders.forEach(reminder => { %>
-                        <div class="checklist-item"> <!-- Re-using checklist-item style -->
+                        <%
+                        // A non-recurring reminder is "past due" if its time has passed.
+                        // Recurring reminders are never "past due" as they just reschedule.
+                        const isPastDue = new Date(reminder.remind_at) < new Date() && reminder.recurrence === 'none';
+                        %>
+                        <div class="checklist-item <%= isPastDue ? 'completed' : '' %>"> <!-- Re-using checklist-item style -->
                             <div style="flex: 1;">
-                                <span class="<%= reminder.notified ? 'completed' : '' %>"><%= reminder.title %></span>
+                                <span><%= reminder.title %></span>
                                 <div class="file-meta" style="margin-top: 0.25rem;">
                                     <% if (reminder.recurrence && reminder.recurrence !== 'none') { %>
                                         <i class="fas fa-sync-alt" title="Recurring"></i> 
                                         Repeats <%= reminder.recurrence.charAt(0).toUpperCase() + reminder.recurrence.slice(1) %> •
                                     <% } %>
                                     <i class="fas fa-clock"></i> 
-                                    Next: <%= new Date(reminder.remind_at).toLocaleString() %>
+                                    <% if (isPastDue) { %>
+                                        Due: <%= new Date(reminder.remind_at).toLocaleString() %>
+                                    <% } else { %>
+                                        Next: <%= new Date(reminder.remind_at).toLocaleString() %>
+                                    <% } %>
                                 </div>
                             </div>
                             <div class="item-actions">

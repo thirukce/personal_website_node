@@ -666,10 +666,11 @@ cron.schedule('* * * * *', async () => {
 
     try {
         // --- Check for 24-hour reminders ---
+        // This window captures reminders that are between 3 and 24 hours away.
         const remindersFor24h = await dbAll(
             `SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id = u.id
-             WHERE r.remind_at <= ? AND r.notified_24h = 0 AND u.email IS NOT NULL AND u.email != ''`,
-            [twentyFourHoursFromNow.toISOString()]
+             WHERE r.remind_at > ? AND r.remind_at <= ? AND r.notified_24h = 0 AND u.email IS NOT NULL AND u.email != ''`,
+            [threeHoursFromNow.toISOString(), twentyFourHoursFromNow.toISOString()]
         );
 
         for (const reminder of remindersFor24h) {
@@ -689,10 +690,11 @@ cron.schedule('* * * * *', async () => {
         }
 
         // --- Check for 3-hour reminders ---
+        // This window captures reminders that are within the next 3 hours.
         const remindersFor3h = await dbAll(
             `SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id = u.id
-             WHERE r.remind_at <= ? AND r.notified_3h = 0 AND u.email IS NOT NULL AND u.email != ''`,
-            [threeHoursFromNow.toISOString()]
+             WHERE r.remind_at > ? AND r.remind_at <= ? AND r.notified_3h = 0 AND u.email IS NOT NULL AND u.email != ''`,
+            [now.toISOString(), threeHoursFromNow.toISOString()]
         );
 
         for (const reminder of remindersFor3h) {
@@ -725,15 +727,16 @@ cron.schedule('* * * * *', async () => {
                 // Correctly call the recurrence logic function based on the reminder's setting.
                 recurrenceLogic[reminder.recurrence]();
             }
-            const newNotified24h = nextRemindAt < new Date(now.getTime() + 24 * 60 * 60 * 1000) ? 1 : 0;
-            const newNotified3h = nextRemindAt < new Date(now.getTime() + 3 * 60 * 60 * 1000) ? 1 : 0;
-            await dbRun('UPDATE reminders SET remind_at = ?, notified = 0, notified_24h = ?, notified_3h = ? WHERE id = ?', [nextRemindAt.toISOString(), newNotified24h, newNotified3h, reminder.id]);
+            // When an event is rescheduled, reset all notification flags to 0
+            // to allow the new reminder instance to trigger its own notifications correctly.
+            await dbRun('UPDATE reminders SET remind_at = ?, notified = 0, notified_24h = 0, notified_3h = 0 WHERE id = ?', [nextRemindAt.toISOString(), reminder.id]);
             console.log(`Rescheduled reminder ID ${reminder.id} for ${nextRemindAt.toISOString()}`);
         }
 
         // --- Cleanup old, non-recurring reminders ---
-        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        await dbRun(`DELETE FROM reminders WHERE recurrence = 'none' AND remind_at < ?`, [oneDayAgo.toISOString()]);
+        // The logic to delete old, non-recurring reminders has been removed as per the new requirement.
+        // const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        // await dbRun(`DELETE FROM reminders WHERE recurrence = 'none' AND remind_at < ?`, [oneDayAgo.toISOString()]);
     } catch (error) {
         console.error('Error in reminder cron job:', error);
     }

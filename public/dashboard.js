@@ -1,13 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Reusable Form Toggling Logic (with focus) ---
-    // Toggles form visibility and focuses the first input field.
-    const toggleForm = (buttonId, formId) => {
+    // --- Helper function to toggle form visibility ---
+    const setupFormToggle = (buttonId, formId) => {
         const button = document.getElementById(buttonId);
         const form = document.getElementById(formId);
         if (button && form) {
             button.addEventListener('click', () => {
                 form.classList.toggle('hidden');
-                // If the form is now visible, focus its first input or textarea
+                // Focus the first input in the form when it's shown
                 if (!form.classList.contains('hidden')) {
                     const firstInput = form.querySelector('input, textarea');
                     if (firstInput) {
@@ -18,108 +17,139 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Assign toggling behavior to all "Add" buttons
-    toggleForm('add-task-btn',     'checklist-form');
-    toggleForm('add-note-btn',     'notes-form');
-    toggleForm('add-file-btn',     'upload-form');
-    toggleForm('add-reminder-btn', 'reminder-form');
+    // --- Setup all form toggles ---
+    setupFormToggle('add-task-btn', 'checklist-form');
+    setupFormToggle('add-note-btn', 'notes-form');
+    setupFormToggle('add-file-btn', 'upload-form');
+    setupFormToggle('add-reminder-btn', 'reminder-form');
 
-    // --- Delete Confirmation Logic ---
-    // Adds a confirmation prompt before submitting any delete form.
-    document.querySelectorAll('.delete-btn').forEach(button => {
-        button.addEventListener('click', (event) => {
-            // The button is inside a form. To prevent submission, we must prevent the default click action.
-            if (!confirm('Are you sure you want to delete this item?')) {
-                event.preventDefault();
-            }
+    // --- Session Timeout Logic ---
+    const body = document.body;
+    const sessionMaxAge = parseInt(body.dataset.sessionMaxAge, 10);
+    const basePath = body.dataset.basePath || '';
+
+    if (sessionMaxAge && sessionMaxAge > 0) {
+        setTimeout(() => {
+            // Redirect to logout with an 'inactive' reason
+            alert('You have been logged out due to inactivity.');
+            window.location.href = `${basePath}/logout?reason=inactive`;
+        }, sessionMaxAge);
+    }
+
+    // --- Confirmation for Delete Forms ---
+    const setupDeleteConfirmation = () => {
+        document.querySelectorAll('form[action$="/delete"]').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                let message = 'Are you sure you want to delete this item?';
+                // Customize message based on the form's action URL
+                if (form.action.includes('/checklist/')) {
+                    message = 'Are you sure you want to delete this task?';
+                } else if (form.action.includes('/notes/')) {
+                    message = 'Are you sure you want to delete this note?';
+                } else if (form.action.includes('/files/')) {
+                    message = 'Are you sure you want to delete this file?';
+                } else if (form.action.includes('/reminders/')) {
+                    message = 'Are you sure you want to delete this reminder?';
+                }
+
+                if (!confirm(message)) {
+                    event.preventDefault(); // Prevent form submission if user cancels
+                }
+            });
         });
-    });
+    };
 
-    // --- File Upload Logic (AJAX with Drag & Drop) ---
-    const uploadForm = document.getElementById('upload-form');
+    // --- File Upload Drag & Drop UI ---
     const uploadArea = document.querySelector('.upload-area');
     const fileInput = document.getElementById('file-input');
     const uploadLabel = document.querySelector('.upload-label');
+    const uploadForm = document.getElementById('upload-form');
 
-    if (uploadForm && uploadArea && fileInput && uploadLabel) {
-        const updateUploadLabel = (fileName) => {
-            uploadLabel.innerHTML =
-                `<i class="fas fa-file" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                 Selected: ${fileName}`;
+    if (uploadArea && fileInput && uploadLabel && uploadForm) {
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        // Highlight drop zone when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.style.borderColor = '#ffd700'; // Use the same hover color
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)'; // Reset border
+            }, false);
+        });
+
+        const updateFileLabel = (file) => {
+            if (file) {
+                uploadLabel.innerHTML = `<i class="fas fa-file" style="margin-right: 8px;"></i> ${file.name}`;
+            }
         };
 
-        // Handle file selection via the input
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) {
-                updateUploadLabel(fileInput.files[0].name);
-            }
-        });
-
-        // Drag and Drop listeners
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = '#ffd700';
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-        });
-
+        // Handle dropped files
         uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            if (e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                fileInput.dispatchEvent(new Event('change')); // Trigger change to update label
-            }
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            updateFileLabel(files[0]);
+        }, false);
+
+        // Handle file selection via click
+        fileInput.addEventListener('change', () => {
+            updateFileLabel(fileInput.files[0]);
         });
+    }
 
-        // Handle form submission with Fetch API for a smoother UX
-        uploadForm.addEventListener('submit', async function(event) {
-            event.preventDefault();
+    // Handle file upload form submission via Fetch API
+    if (uploadForm) {
+        const uploadSubmitBtn = uploadForm.querySelector('button[type="submit"]');
 
-            if (fileInput.files.length === 0) {
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent default form submission
+
+            if (!fileInput.files || fileInput.files.length === 0) {
                 alert('Please select a file to upload.');
                 return;
             }
 
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+            formData.append('file', fileInput.files[0]); // 'file' must match multer's field name
 
             try {
-                const response = await fetch(this.action, {
+                if (uploadSubmitBtn) {
+                    uploadSubmitBtn.disabled = true; // Disable button during upload
+                }
+                const response = await fetch(uploadForm.action, {
                     method: 'POST',
                     body: formData,
                 });
 
+                const result = await response.text(); // Read as text, server sends simple string
+
                 if (response.ok) {
                     alert('File uploaded successfully!');
-                    window.location.reload(); // Reload to see the new file
+                    window.location.reload(); // Reload dashboard to show new file
                 } else {
-                    const errorText = await response.text();
-                    alert('Upload failed: ' + errorText);
+                    alert(`Upload failed: ${result}`); // Display error message from server
                 }
             } catch (error) {
-                console.error('An unexpected error occurred during upload:', error);
-                alert('An unexpected error occurred. Please try again.');
+                console.error('Error uploading file:', error);
+                alert('An unexpected error occurred during upload.');
+            } finally {
+                if (uploadSubmitBtn) {
+                    uploadSubmitBtn.disabled = false; // Re-enable button
+                }
             }
         });
     }
 
-    // --- Inactivity Logout Logic ---
-    const body = document.body;
-    const inactivityTime = parseInt(body.dataset.sessionMaxAge, 10);
-    const basePath = body.dataset.basePath || '';
-
-    if (inactivityTime && !isNaN(inactivityTime)) {
-        let timeout;
-        const logout = () => window.location.href = `${basePath}/logout?reason=inactive`;
-        const resetTimer = () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(logout, inactivityTime);
-        };
-        ['load', 'mousemove', 'mousedown', 'touchstart', 'click', 'keydown', 'scroll'].forEach(eventName => {
-            window.addEventListener(eventName, resetTimer, true);
-        });
-    }
+    // Initialize delete confirmations
+    setupDeleteConfirmation();
 });
