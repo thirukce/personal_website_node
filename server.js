@@ -20,6 +20,24 @@ const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 
 const app = express();
+
+/**
+ * Formats a Date object into a local time string 'YYYY-MM-DDTHH:MM:SS'
+ * that is compatible with SQLite's string sorting and is safely parsed as local time by `new Date()`.
+ * This avoids UTC conversion and uses the server's local timezone.
+ * @param {Date} date The date to format.
+ * @returns {string} The formatted date string.
+ */
+function formatDbDate(date) {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
 const PORT = process.env.PORT || 3000;
 const BASE_PATH = process.env.BASE_PATH || '';
 
@@ -478,22 +496,23 @@ app.post(BASE_PATH + '/reminders', requireAuth, reminderValidation, async (req, 
         return res.redirect(BASE_PATH + '/dashboard?error=Invalid reminder data');
     }
 
-    const { title, remind_at, recurrence } = req.body;
+    const { title, recurrence } = req.body;
+    const remindAtDate = req.body.remind_at; // This is a Date object from the validator
     const userId = req.session.userId;
     const now = new Date();
-    const remindAtDate = new Date(remind_at);
 
     // Pre-emptively mark notifications as "sent" or "not applicable" if the reminder is set for the near future.
-    // This prevents sending a "24-hour" reminder for an event that is only 4 hours away.
-    const notified_24h = remindAtDate < new Date(now.getTime() + 24 * 60 * 60 * 1000) ? 1 : 0;
-    const notified_3h = remindAtDate < new Date(now.getTime() + 3 * 60 * 60 * 1000) ? 1 : 0;
+    const notified_24h = remindAtDate.getTime() < (now.getTime() + 24 * 60 * 60 * 1000) ? 1 : 0;
+    const notified_3h = remindAtDate.getTime() < (now.getTime() + 3 * 60 * 60 * 1000) ? 1 : 0;
+
+    // Format the date to a local time string for database storage, instead of default UTC.
+    const remindAtForDb = formatDbDate(remindAtDate);
 
     try {
-        // Insert the new reminder with the calculated notification flags.
-        // The original `notified` column is set to 0 for backward compatibility.
+        // Insert the new reminder with the local time string.
         await dbRun(
             'INSERT INTO reminders (user_id, title, remind_at, recurrence, notified, notified_24h, notified_3h) VALUES (?, ?, ?, ?, 0, ?, ?)',
-            [userId, title, remind_at, recurrence, notified_24h, notified_3h]
+            [userId, title, remindAtForDb, recurrence, notified_24h, notified_3h]
         );
         res.redirect(BASE_PATH + '/dashboard');
     } catch (err) {
@@ -664,12 +683,17 @@ cron.schedule('* * * * *', async () => {
     // Only run if email is configured
     if (!process.env.EMAIL_HOST) return;
 
-    // "Heartbeat" log to confirm the cron job is running every minute.
-    console.log(`[${new Date().toISOString()}] Cron job running: Checking for reminders...`);
+    // "Heartbeat" log in local time to confirm the cron job is running.
+    console.log(`[${new Date().toLocaleString('en-US')}] Cron job running: Checking for reminders...`);
 
     const now = new Date();
     const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const threeHoursFromNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+    // Format dates into local time strings for DB query, instead of UTC with toISOString().
+    const nowForDb = formatDbDate(now);
+    const threeHoursFromNowForDb = formatDbDate(threeHoursFromNow);
+    const twentyFourHoursFromNowForDb = formatDbDate(twentyFourHoursFromNow);
 
     try {
         // --- Check for 24-hour reminders ---
@@ -677,7 +701,7 @@ cron.schedule('* * * * *', async () => {
         const remindersFor24h = await dbAll(
             `SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id = u.id
              WHERE r.remind_at > ? AND r.remind_at <= ? AND r.notified_24h = 0 AND u.email IS NOT NULL AND u.email != ''`,
-            [threeHoursFromNow.toISOString(), twentyFourHoursFromNow.toISOString()]
+            [threeHoursFromNowForDb, twentyFourHoursFromNowForDb]
         );
 
         for (const reminder of remindersFor24h) {
@@ -700,8 +724,8 @@ cron.schedule('* * * * *', async () => {
         // This window captures reminders that are within the next 3 hours.
         const remindersFor3h = await dbAll(
             `SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id = u.id
-             WHERE r.remind_at > ? AND r.remind_at <= ? AND r.notified_3h = 0 AND u.email IS NOT NULL AND u.email != ''`,
-            [now.toISOString(), threeHoursFromNow.toISOString()]
+             WHERE r.remind_at >= ? AND r.remind_at <= ? AND r.notified_3h = 0 AND u.email IS NOT NULL AND u.email != ''`,
+            [nowForDb, threeHoursFromNowForDb]
         );
 
         for (const reminder of remindersFor3h) {
@@ -721,23 +745,27 @@ cron.schedule('* * * * *', async () => {
         }
 
         // --- Handle recurrence for reminders that have passed ---
-        const pastDueRecurringReminders = await dbAll(`SELECT * FROM reminders WHERE remind_at <= ? AND recurrence != 'none'`, [now.toISOString()]);
+        // Only select reminders that are strictly in the past to avoid rescheduling them at the exact moment they are due.
+        const pastDueRecurringReminders = await dbAll(`SELECT * FROM reminders WHERE remind_at < ? AND recurrence != 'none'`, [nowForDb]);
 
         for (const reminder of pastDueRecurringReminders) {
+            // The DB stores a 'YYYY-MM-DDTHH:MM:SS' string which new Date() correctly parses as local time.
             let nextRemindAt = new Date(reminder.remind_at);
-            const calculationTime = new Date();
+
             const recurrenceLogic = {
                 daily: () => nextRemindAt.setDate(nextRemindAt.getDate() + 1),
                 weekly: () => nextRemindAt.setDate(nextRemindAt.getDate() + 7),
             };
-            while (nextRemindAt <= calculationTime) {
+            // Keep advancing the date until it's in the future relative to the current cron job time.
+            while (nextRemindAt <= now) {
                 // Correctly call the recurrence logic function based on the reminder's setting.
                 recurrenceLogic[reminder.recurrence]();
             }
             // When an event is rescheduled, reset all notification flags to 0
             // to allow the new reminder instance to trigger its own notifications correctly.
-            await dbRun('UPDATE reminders SET remind_at = ?, notified = 0, notified_24h = 0, notified_3h = 0 WHERE id = ?', [nextRemindAt.toISOString(), reminder.id]);
-            console.log(`Rescheduled reminder ID ${reminder.id} for ${nextRemindAt.toISOString()}`);
+            const nextRemindAtForDb = formatDbDate(nextRemindAt);
+            await dbRun('UPDATE reminders SET remind_at = ?, notified = 0, notified_24h = 0, notified_3h = 0 WHERE id = ?', [nextRemindAtForDb, reminder.id]);
+            console.log(`Rescheduled reminder ID ${reminder.id} for ${nextRemindAtForDb}`);
         }
 
         // --- Cleanup old, non-recurring reminders ---

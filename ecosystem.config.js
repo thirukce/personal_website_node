@@ -7,11 +7,13 @@ module.exports = {
     watch: false,
     max_memory_restart: '1G',
     env: {
-      NODE_ENV: 'development'
+      NODE_ENV: 'development',
+      TZ: 'America/New_York'
     },
     env_production: {
       NODE_ENV: 'production',
-      PORT: 3000 // This can be overridden by the .env file
+      PORT: 3000, // This can be overridden by the .env file
+      TZ: 'America/New_York'
     }
   }]
 };
