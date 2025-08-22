@@ -23,9 +23,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_PATH = process.env.BASE_PATH || '';
 
-// Environment-driven configuration with defaults
-const DB_PATH = process.env.DB_PATH || 'personal_website.db';
-const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads';
+// Resolve DB_PATH to an absolute path. This makes it robust whether the .env path is relative or absolute.
+const rawDbPath = process.env.DB_PATH || 'personal_website.db';
+const DB_PATH = path.isAbsolute(rawDbPath) 
+    ? rawDbPath 
+    : path.join(__dirname, rawDbPath);
+
+// Resolve UPLOAD_DIR to an absolute path.
+const rawUploadDir = process.env.UPLOAD_DIR || 'uploads';
+const UPLOAD_DIR = path.isAbsolute(rawUploadDir) 
+    ? rawUploadDir 
+    : path.join(__dirname, rawUploadDir);
+
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE, 10) || 5 * 1024 * 1024; // 5MB
 
 const LOGIN_RATE_LIMIT_WINDOW = parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW, 10) || 15 * 60 * 1000; // 15 mins
@@ -79,9 +88,8 @@ app.use(BASE_PATH, express.static(publicPath));
 									
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, UPLOAD_DIR);
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 // Database setup
@@ -193,9 +201,9 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
     resave: false,
     store: new SQLiteStore({
-        db: DB_PATH, // Use the database file from config
-        dir: __dirname, // Store db in the project root
-        table: 'sessions' // Optional: name of the sessions table
+        db: path.basename(DB_PATH),
+        dir: path.dirname(DB_PATH),
+        table: 'sessions'
     }),
     saveUninitialized: false,
     name: 'sessionId', // Don't use default session name
@@ -230,7 +238,7 @@ app.use(generalLimiter);
 // File upload configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, UPLOAD_DIR + '/');
+        cb(null, UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -607,9 +615,9 @@ app.post(BASE_PATH + '/upload', requireAuth, (req, res) => {
         const { filename, originalname, size, mimetype } = req.file;
         
         try {
+            const filePath = path.join(UPLOAD_DIR, filename);
             await dbRun('INSERT INTO files (user_id, filename, original_name, file_path, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
-                [userId, filename, originalname, UPLOAD_DIR + '/' + filename, size, mimetype]);
-
+                [userId, filename, originalname, filePath, size, mimetype]);
             // Respond with a success message that the client's fetch can see
             res.status(200).send('File uploaded successfully!');
         } catch (dbErr) {
@@ -628,8 +636,7 @@ app.get(BASE_PATH + '/download/:id', requireAuth, (req, res) => {
             return res.status(404).send('File not found');
         }
         
-        const filePath = path.join(__dirname, file.file_path);
-        res.download(filePath, file.original_name);
+        res.download(file.file_path, file.original_name);
     });
 });
 
@@ -641,7 +648,7 @@ app.post(BASE_PATH + '/files/:id/delete', requireAuth, async (req, res) => {
         const file = await dbGet('SELECT * FROM files WHERE id = ? AND user_id = ?', [fileId, userId]);
         if (file) {
             // Delete physical file first, and wait for it to complete
-            await fsPromises.unlink(path.join(__dirname, file.file_path));
+            await fsPromises.unlink(file.file_path);
             // Then delete from database
             await dbRun('DELETE FROM files WHERE id = ? AND user_id = ?', [fileId, userId]);
         }
@@ -651,7 +658,7 @@ app.post(BASE_PATH + '/files/:id/delete', requireAuth, async (req, res) => {
         res.redirect(BASE_PATH + '/dashboard?error=Failed+to+delete+file');
     }
 });
-
+/*  */
 // Cron job to check for reminders every minute
 cron.schedule('* * * * *', async () => {
     // Only run if email is configured
