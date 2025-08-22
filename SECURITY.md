@@ -56,6 +56,7 @@ nano .env
 **Required changes:**
 - `SESSION_SECRET`: Generate a strong random secret (32+ characters)
 - `ALLOWED_ORIGINS`: Set your actual domain
+- `ADMIN_DEFAULT_PASSWORD`: Set a strong, unique password for the default admin user.
 - `NODE_ENV=production`
 
 ### 2. Generate Secure Session Secret

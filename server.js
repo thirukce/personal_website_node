@@ -160,9 +160,22 @@ db.serialize(() => {
         if (!err) console.log("Added 'recurrence' column to 'reminders' table.");
     });
 
-    // Create default admin user (password: XXXX)
-    const hashedPassword = bcrypt.hashSync('Amuthini$001', 10);
-    db.run(`INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)`, 
+    // Add new columns for multi-stage notifications
+    db.run("ALTER TABLE reminders ADD COLUMN notified_24h BOOLEAN DEFAULT 0", (err) => {
+        if (!err) console.log("Added 'notified_24h' column to 'reminders' table.");
+    });
+    db.run("ALTER TABLE reminders ADD COLUMN notified_3h BOOLEAN DEFAULT 0", (err) => {
+        if (!err) console.log("Added 'notified_3h' column to 'reminders' table.");
+    });
+
+    // Create default admin user. The password should be set in the .env file.
+    // This runs only on the first start if the 'admin' user doesn't exist.
+    const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
+    if (adminPassword === 'admin123' && process.env.NODE_ENV === 'production') {
+        console.warn('⚠️ WARNING: Using a fallback admin password in production. Please set ADMIN_DEFAULT_PASSWORD in your .env file for security.');
+    }
+    const hashedPassword = bcrypt.hashSync(adminPassword, 10);
+    db.run(`INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)`,
            ['admin', hashedPassword]);
     
     // Set a default email for the admin user if not set
@@ -459,14 +472,23 @@ app.post(BASE_PATH + '/reminders', requireAuth, reminderValidation, async (req, 
 
     const { title, remind_at, recurrence } = req.body;
     const userId = req.session.userId;
+    const now = new Date();
+    const remindAtDate = new Date(remind_at);
+
+    // Pre-emptively mark notifications as "sent" or "not applicable" if the reminder is set for the near future.
+    // This prevents sending a "24-hour" reminder for an event that is only 4 hours away.
+    const notified_24h = remindAtDate < new Date(now.getTime() + 24 * 60 * 60 * 1000) ? 1 : 0;
+    const notified_3h = remindAtDate < new Date(now.getTime() + 3 * 60 * 60 * 1000) ? 1 : 0;
 
     try {
-        // Set notified to 0 so it's eligible for the first notification
-        await dbRun('INSERT INTO reminders (user_id, title, remind_at, recurrence, notified) VALUES (?, ?, ?, ?, 0)', 
-            [userId, title, remind_at, recurrence]);
+        // Insert the new reminder with the calculated notification flags.
+        // The original `notified` column is set to 0 for backward compatibility.
+        await dbRun(
+            'INSERT INTO reminders (user_id, title, remind_at, recurrence, notified, notified_24h, notified_3h) VALUES (?, ?, ?, ?, 0, ?, ?)',
+            [userId, title, remind_at, recurrence, notified_24h, notified_3h]
+        );
         res.redirect(BASE_PATH + '/dashboard');
     } catch (err) {
-        console.error('Failed to create reminder:', err);
         res.redirect(BASE_PATH + '/dashboard?error=Failed to create reminder');
     }
 });
@@ -510,6 +532,36 @@ app.post(BASE_PATH + '/profile/email', requireAuth, emailValidation, async (req,
     }
 });
 
+// A temporary route for testing email functionality
+app.get(BASE_PATH + '/test-email', requireAuth, async (req, res) => {
+    const userId = req.session.userId;
+    try {
+        const user = await dbGet('SELECT email FROM users WHERE id = ?', [userId]);
+
+        if (!user || !user.email) {
+            return res.status(400).send('No email configured for your account. Please set one in the dashboard.');
+        }
+
+        if (!process.env.EMAIL_HOST) {
+            return res.status(500).send('Email service is not configured on the server. Check .env variables.');
+        }
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_FROM || `"Personal Dashboard Test" <${process.env.EMAIL_USER}>`,
+            to: user.email,
+            subject: 'SMTP Configuration Test',
+            text: 'Hello! If you received this email, your SMTP configuration is working correctly.',
+            html: '<p>Hello!</p><p>If you received this email, your SMTP configuration is working correctly.</p>',
+        });
+
+        console.log(`Test email sent successfully to ${user.email}`);
+        res.send(`Successfully sent a test email to <strong>${user.email}</strong>. Please check your inbox.`);
+
+    } catch (error) {
+        console.error('Failed to send test email:', error);
+        res.status(500).send(`Failed to send test email. Check server logs for details. Error: ${error.message}`);
+    }
+});
 // --- Email and Scheduler Setup ---
 
 // Nodemailer transporter setup using environment variables
@@ -605,54 +657,83 @@ cron.schedule('* * * * *', async () => {
     // Only run if email is configured
     if (!process.env.EMAIL_HOST) return;
 
+    // "Heartbeat" log to confirm the cron job is running every minute.
+    console.log(`[${new Date().toISOString()}] Cron job running: Checking for reminders...`);
+
+    const now = new Date();
+    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const threeHoursFromNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
     try {
-        const now = new Date();
-        // Find reminders that are due and have not been notified yet.
-        const dueReminders = await dbAll(
-            `SELECT r.*, u.email FROM reminders r
-             JOIN users u ON r.user_id = u.id
-             WHERE r.remind_at <= ? AND r.notified = 0 AND u.email IS NOT NULL AND u.email != ''`,
-            [now.toISOString()]
+        // --- Check for 24-hour reminders ---
+        const remindersFor24h = await dbAll(
+            `SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id = u.id
+             WHERE r.remind_at <= ? AND r.notified_24h = 0 AND u.email IS NOT NULL AND u.email != ''`,
+            [twentyFourHoursFromNow.toISOString()]
         );
 
-        for (const reminder of dueReminders) {
+        for (const reminder of remindersFor24h) {
             try {
                 await transporter.sendMail({
                     from: process.env.EMAIL_FROM || `"Personal Dashboard" <${process.env.EMAIL_USER}>`,
                     to: reminder.email,
-                    subject: `Reminder: ${reminder.title}`,
-                    text: `This is a reminder for: "${reminder.title}".`,
-                    html: `<p>This is a reminder for: "<b>${reminder.title}</b>".</p>`,
+                    subject: `Reminder (24 hours): ${reminder.title}`,
+                    text: `This is a 24-hour reminder for: "${reminder.title}".\nIt is scheduled for ${new Date(reminder.remind_at).toLocaleString()}.`,
+                    html: `<p>This is a 24-hour reminder for: "<b>${reminder.title}</b>".</p><p>It is scheduled for ${new Date(reminder.remind_at).toLocaleString()}.</p>`,
                 });
-                console.log(`Reminder email sent to ${reminder.email} for reminder ID ${reminder.id}`);
-
-                // Handle recurrence
-                if (reminder.recurrence === 'none') {
-                    // For non-recurring reminders, just mark as notified.
-                    await dbRun('UPDATE reminders SET notified = 1 WHERE id = ?', [reminder.id]);
-                } else {
-                    // For recurring reminders, calculate the next date that is in the future.
-                    // This prevents email storms if the server was down.
-                    let nextRemindAt = new Date(reminder.remind_at);
-                    const calculationTime = new Date(); // Use current time for calculation
-
-                    if (reminder.recurrence === 'daily') {
-                        while (nextRemindAt <= calculationTime) {
-                            nextRemindAt.setDate(nextRemindAt.getDate() + 1);
-                        }
-                    } else if (reminder.recurrence === 'weekly') {
-                        while (nextRemindAt <= calculationTime) {
-                            nextRemindAt.setDate(nextRemindAt.getDate() + 7);
-                        }
-                    }
-                    // Update the reminder with the new date and reset `notified` to 0.
-                    await dbRun('UPDATE reminders SET remind_at = ?, notified = 0 WHERE id = ?', [nextRemindAt.toISOString(), reminder.id]);
-                    console.log(`Rescheduled reminder ID ${reminder.id} for ${nextRemindAt.toISOString()}`);
-                }
+                console.log(`24-hour reminder email sent to ${reminder.email} for reminder ID ${reminder.id}`);
+                await dbRun('UPDATE reminders SET notified_24h = 1 WHERE id = ?', [reminder.id]);
             } catch (processErr) {
-                console.error(`Failed to process reminder ${reminder.id}:`, processErr);
+                console.error(`Failed to process 24h reminder ${reminder.id}:`, processErr);
             }
         }
+
+        // --- Check for 3-hour reminders ---
+        const remindersFor3h = await dbAll(
+            `SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id = u.id
+             WHERE r.remind_at <= ? AND r.notified_3h = 0 AND u.email IS NOT NULL AND u.email != ''`,
+            [threeHoursFromNow.toISOString()]
+        );
+
+        for (const reminder of remindersFor3h) {
+            try {
+                await transporter.sendMail({
+                    from: process.env.EMAIL_FROM || `"Personal Dashboard" <${process.env.EMAIL_USER}>`,
+                    to: reminder.email,
+                    subject: `Reminder (3 hours): ${reminder.title}`,
+                    text: `This is a 3-hour reminder for: "${reminder.title}".\nIt is scheduled for ${new Date(reminder.remind_at).toLocaleString()}.`,
+                    html: `<p>This is a 3-hour reminder for: "<b>${reminder.title}</b>".</p><p>It is scheduled for ${new Date(reminder.remind_at).toLocaleString()}.</p>`,
+                });
+                console.log(`3-hour reminder email sent to ${reminder.email} for reminder ID ${reminder.id}`);
+                await dbRun('UPDATE reminders SET notified_3h = 1 WHERE id = ?', [reminder.id]);
+            } catch (processErr) {
+                console.error(`Failed to process 3h reminder ${reminder.id}:`, processErr);
+            }
+        }
+
+        // --- Handle recurrence for reminders that have passed ---
+        const pastDueRecurringReminders = await dbAll(`SELECT * FROM reminders WHERE remind_at <= ? AND recurrence != 'none'`, [now.toISOString()]);
+
+        for (const reminder of pastDueRecurringReminders) {
+            let nextRemindAt = new Date(reminder.remind_at);
+            const calculationTime = new Date();
+            const recurrenceLogic = {
+                daily: () => nextRemindAt.setDate(nextRemindAt.getDate() + 1),
+                weekly: () => nextRemindAt.setDate(nextRemindAt.getDate() + 7),
+            };
+            while (nextRemindAt <= calculationTime) {
+                // Correctly call the recurrence logic function based on the reminder's setting.
+                recurrenceLogic[reminder.recurrence]();
+            }
+            const newNotified24h = nextRemindAt < new Date(now.getTime() + 24 * 60 * 60 * 1000) ? 1 : 0;
+            const newNotified3h = nextRemindAt < new Date(now.getTime() + 3 * 60 * 60 * 1000) ? 1 : 0;
+            await dbRun('UPDATE reminders SET remind_at = ?, notified = 0, notified_24h = ?, notified_3h = ? WHERE id = ?', [nextRemindAt.toISOString(), newNotified24h, newNotified3h, reminder.id]);
+            console.log(`Rescheduled reminder ID ${reminder.id} for ${nextRemindAt.toISOString()}`);
+        }
+
+        // --- Cleanup old, non-recurring reminders ---
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        await dbRun(`DELETE FROM reminders WHERE recurrence = 'none' AND remind_at < ?`, [oneDayAgo.toISOString()]);
     } catch (error) {
         console.error('Error in reminder cron job:', error);
     }

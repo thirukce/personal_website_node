@@ -17,7 +17,7 @@ A beautiful, secure personal website featuring a public homepage and private aut
 
 ## Default Login Credentials
 - **Username**: `admin`
-- **Password**: `admin123`
+- **Password**: The default password is set via the `ADMIN_DEFAULT_PASSWORD` environment variable on the first run. If not set, it uses a fallback password suitable only for local development.
 
 ## Local Development Setup
 
