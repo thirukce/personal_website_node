@@ -392,7 +392,6 @@ const checklistValidation = [
     body('title')
         .trim()
         .isLength({ min: 1, max: 200 })
-        .escape()
         .withMessage('Title must be 1-200 characters')
 ];
 
@@ -437,12 +436,10 @@ const notesValidation = [
     body('title')
         .trim()
         .isLength({ min: 1, max: 200 })
-        .escape()
         .withMessage('Title must be 1-200 characters'),
     body('content')
         .trim()
         .isLength({ max: 10000 })
-        .escape()
         .withMessage('Content must be less than 10000 characters')
 ];
 
@@ -478,7 +475,6 @@ const reminderValidation = [
     body('title')
         .trim()
         .isLength({ min: 1, max: 200 })
-        .escape()
         .withMessage('Title must be 1-200 characters'),
     body('remind_at')
         .isISO8601()
@@ -666,15 +662,24 @@ app.post(BASE_PATH + '/files/:id/delete', requireAuth, async (req, res) => {
     try {
         const file = await dbGet('SELECT * FROM files WHERE id = ? AND user_id = ?', [fileId, userId]);
         if (file) {
-            // Delete physical file first, and wait for it to complete
-            await fsPromises.unlink(file.file_path);
-            // Then delete from database
+            // Attempt to delete the physical file, but don't let it block the DB operation.
+            try {
+                await fsPromises.unlink(file.file_path);
+            } catch (unlinkErr) {
+                // If the file doesn't exist (ENOENT), that's fine. We still want to remove the DB record.
+                // For other errors, we should log them but continue.
+                if (unlinkErr.code !== 'ENOENT') {
+                    console.error(`Could not delete physical file ${file.file_path}, but proceeding to delete DB record. Error:`, unlinkErr);
+                }
+            }
+            // Always delete the database record if it was found.
             await dbRun('DELETE FROM files WHERE id = ? AND user_id = ?', [fileId, userId]);
         }
         res.redirect(BASE_PATH + '/dashboard');
     } catch (err) {
-        console.error(`Failed to delete file ${fileId} for user ${userId}:`, err);
-        res.redirect(BASE_PATH + '/dashboard?error=Failed+to+delete+file');
+        // This will now only catch critical errors (e.g., database connection issues).
+        console.error(`Failed to delete file record ${fileId} for user ${userId}:`, err);
+        res.redirect(BASE_PATH + '/dashboard?error=Failed+to+delete+file+record');
     }
 });
 /*  */
