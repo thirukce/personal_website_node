@@ -17,23 +17,19 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-image: url('<%= basePath %>/images/nature-bg.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
         }
 
         .header {
-            background: rgba(255, 255, 255, 0.85); /* Semi-transparent header */
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             padding: 1rem 0;
-            border-bottom: 1px solid #e0e0e0; /* Light border */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .header-content {
@@ -46,23 +42,22 @@
         }
 
         .welcome {
-            color: #333; /* Dark text */
+            color: white;
             font-size: 1.2rem;
         }
 
         .logout-btn {
-            background: #e9ecef; /* Light grey button */
-            color: #333; /* Dark text */
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
             border: none;
             padding: 8px 16px;
             border-radius: 20px;
             text-decoration: none;
             transition: all 0.3s ease;
-            font-weight: 500;
         }
 
         .logout-btn:hover {
-            background: #dee2e6; /* Darker grey on hover */
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .container {
@@ -79,12 +74,12 @@
         }
 
         .card {
-            background: rgba(255, 255, 255, 0.85); /* Semi-transparent cards */
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
             border-radius: 15px;
             padding: 1.5rem;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Adjusted shadow for depth */
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .card-header {
@@ -92,7 +87,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
-            color: #333; /* Dark text */
+            color: white;
         }
 
         .card-title {
@@ -101,8 +96,8 @@
         }
 
         .add-btn {
-            background: #4CAF50; /* Nature green */
-            color: white;
+            background: #ffd700;
+            color: #333;
             border: none;
             padding: 8px 12px;
             border-radius: 8px;
@@ -112,7 +107,7 @@
         }
 
         .add-btn:hover {
-            background: #45a049; /* Darker green */
+            background: #ffed4e;
             transform: translateY(-1px);
         }
 
@@ -120,29 +115,28 @@
             margin-bottom: 1rem;
         }
 
-        .form-group input, .form-group textarea, .form-group select {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ced4da; /* Standard border */
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
-            background: #f8f9fa; /* Very light grey input background */
-            color: #333; /* Dark text */
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
             font-size: 0.9rem;
         }
 
         .form-group input::placeholder, .form-group textarea::placeholder {
-            color: #6c757d; /* Grey placeholder text */
+            color: rgba(255, 255, 255, 0.6);
         }
 
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+        .form-group input:focus, .form-group textarea:focus {
             outline: none;
-            border-color: #81c784; /* Green focus border */
-            background: #ffffff;
-            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25); /* Green focus shadow */
+            border-color: #ffd700;
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .submit-btn {
-            background: #4CAF50; /* Consistent green button */
+            background: #4CAF50;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -153,25 +147,23 @@
         }
 
         .submit-btn:hover {
-            background: #45a049; /* Darker green */
+            background: #45a049;
         }
 
         .checklist-item, .note-item, .file-item {
-            background: #f8f9fa; /* Light background for items */
+            background: rgba(255, 255, 255, 0.1);
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 0.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            color: #333; /* Dark text */
-            border: 1px solid #e9ecef;
+            color: white;
         }
 
         .checklist-item.completed {
             opacity: 0.6;
             text-decoration: line-through;
-            background: #e9ecef;
         }
 
         .item-actions {
@@ -182,24 +174,23 @@
         .action-btn {
             background: none;
             border: none;
-            color: #6c757d; /* Grey action icons */
+            color: white;
             cursor: pointer;
             padding: 4px 8px;
             border-radius: 4px;
-            transition: all 0.3s ease;
+            transition: background 0.3s ease;
         }
 
         .action-btn:hover {
-            background: #e9ecef; /* Light grey background on hover */
-            color: #333;
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .toggle-btn {
-            color: #28a745; /* Green for check */
+            color: #4CAF50;
         }
 
         .delete-btn {
-            color: #dc3545; /* Red for delete */
+            color: #f44336;
         }
 
         .note-content {
@@ -207,7 +198,6 @@
             font-size: 0.9rem;
             opacity: 0.8;
             white-space: pre-wrap;
-            color: #495057;
         }
 
         .file-info {
@@ -227,19 +217,19 @@
         }
 
         .upload-area {
-            border: 2px dashed #ced4da; /* Grey dashed border */
+            border: 2px dashed rgba(255, 255, 255, 0.3);
             border-radius: 8px;
             padding: 2rem;
             text-align: center;
-            color: #6c757d; /* Grey text */
+            color: white;
             margin-bottom: 1rem;
             transition: border-color 0.3s ease;
         }
 
         .upload-area:hover {
-            border-color: #4CAF50; /* Green border on hover */
+            border-color: #ffd700;
         }
- 
+
         .upload-area input[type="file"] {
             display: none;
         }
@@ -257,22 +247,6 @@
         .checklist-items, .notes-items, .files-items, .reminders-items {
             display: flex;
             flex-direction: column;
-        }
-
-        /* Override inline styles for empty state text */
-        p[style*="color: rgba(255,255,255,0.6)"] {
-            color: #6c757d !important;
-        }
-
-        /* Style for profile section */
-        label[for="email"] {
-            color: #333;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        input[type="datetime-local"] {
-            color-scheme: light; /* Make the date picker light-themed */
         }
 
         @media (max-width: 768px) {
@@ -464,20 +438,20 @@
                 <!-- Profile Email Form -->
                 <form method="POST" action="<%= basePath %>/profile/email" style="margin-bottom: 2rem;">
                     <div class="form-group">
-                        <label for="email">Notification Email</label>
+                        <label for="email" style="color: white; display: block; margin-bottom: 0.5rem;">Notification Email</label>
                         <input type="email" id="email" name="email" value="<%= userEmail || '' %>" placeholder="you@example.com" required>
                     </div>
-                    <button type="submit" class="submit-btn" style="width: 100%; background-color: #4CAF50;">
+                    <button type="submit" class="submit-btn" style="width: 100%;">
                         <i class="fas fa-save"></i> Update Email
                     </button>
                     <% if (!userEmail) { %>
-                        <p style="color: #6c757d; text-align: center; font-size: 0.8rem; margin-top: 0.5rem;">
+                        <p style="color: rgba(255,255,255,0.6); text-align: center; font-size: 0.8rem; margin-top: 0.5rem;">
                             Set an email to receive reminder notifications.
                         </p>
                     <% } %>
                 </form>
 
-                <hr style="border-color: #e0e0e0; margin-bottom: 1.5rem;">
+                <hr style="border-color: rgba(255,255,255,0.2); margin-bottom: 1.5rem;">
 
                 <!-- Reminders Section -->
                 <div class="card-header" style="padding: 0; margin-bottom: 1rem;">
@@ -494,13 +468,13 @@
                         <input type="text" name="title" placeholder="Reminder title..." required>
                     </div>
                     <div class="form-group">
-                        <input type="datetime-local" name="remind_at" required>
+                        <input type="datetime-local" name="remind_at" required style="color-scheme: dark;">
                     </div>
                     <div class="form-group">
-                        <select name="recurrence">
-                            <option value="none">Does not repeat</option>
-                            <option value="daily">Repeats Daily</option>
-                            <option value="weekly">Repeats Weekly</option>
+                        <select name="recurrence" style="width: 100%; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 0.9rem;">
+                            <option value="none" style="color: black;">Does not repeat</option>
+                            <option value="daily" style="color: black;">Repeats Daily</option>
+                            <option value="weekly" style="color: black;">Repeats Weekly</option>
                         </select>
                     </div>
                     <button type="submit" class="submit-btn">

@@ -17,17 +17,13 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-image: url('<%= basePath %>/images/nature-bg.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background: #f0f2f5; /* Light grey background */
             min-height: 100vh;
             color: #333;
         }
 
         .header {
-            background: rgba(255, 255, 255, 0.85); /* Semi-transparent header */
-            backdrop-filter: blur(10px);
+            background: #ffffff; /* White header */
             padding: 1rem 0;
             border-bottom: 1px solid #e0e0e0; /* Light border */
             position: sticky;
@@ -79,12 +75,11 @@
         }
 
         .card {
-            background: rgba(255, 255, 255, 0.85); /* Semi-transparent cards */
-            backdrop-filter: blur(10px);
+            background: #ffffff; /* White cards */
             border-radius: 15px;
             padding: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Adjusted shadow for depth */
+            border: 1px solid #e0e0e0; /* Light border */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Softer shadow */
         }
 
         .card-header {
@@ -101,7 +96,7 @@
         }
 
         .add-btn {
-            background: #4CAF50; /* Nature green */
+            background: #007bff; /* Primary blue */
             color: white;
             border: none;
             padding: 8px 12px;
@@ -112,7 +107,7 @@
         }
 
         .add-btn:hover {
-            background: #45a049; /* Darker green */
+            background: #0056b3; /* Darker blue */
             transform: translateY(-1px);
         }
 
@@ -136,13 +131,13 @@
 
         .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
             outline: none;
-            border-color: #81c784; /* Green focus border */
+            border-color: #80bdff; /* Blue focus border */
             background: #ffffff;
-            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25); /* Green focus shadow */
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); /* Bootstrap-like focus shadow */
         }
 
         .submit-btn {
-            background: #4CAF50; /* Consistent green button */
+            background: #28a745; /* Green success button */
             color: white;
             border: none;
             padding: 8px 16px;
@@ -153,7 +148,7 @@
         }
 
         .submit-btn:hover {
-            background: #45a049; /* Darker green */
+            background: #218838; /* Darker green */
         }
 
         .checklist-item, .note-item, .file-item {
@@ -237,7 +232,7 @@
         }
 
         .upload-area:hover {
-            border-color: #4CAF50; /* Green border on hover */
+            border-color: #007bff; /* Blue border on hover */
         }
  
         .upload-area input[type="file"] {
@@ -434,7 +429,7 @@
                                 </div>
                             </div>
                             <div class="item-actions">
-                                <a href="<%= basePath %>/download/<%= file.id %>" class="action-btn" style="color: #4CAF50;">
+                                <a href="<%= basePath %>/download/<%= file.id %>" class="action-btn" style="color: #28a745;">
                                     <i class="fas fa-download"></i>
                                 </a>
                                 <form method="POST" action="<%= basePath %>/files/<%= file.id %>/delete" style="display: inline;">
@@ -467,7 +462,7 @@
                         <label for="email">Notification Email</label>
                         <input type="email" id="email" name="email" value="<%= userEmail || '' %>" placeholder="you@example.com" required>
                     </div>
-                    <button type="submit" class="submit-btn" style="width: 100%; background-color: #4CAF50;">
+                    <button type="submit" class="submit-btn" style="width: 100%; background-color: #007bff;">
                         <i class="fas fa-save"></i> Update Email
                     </button>
                     <% if (!userEmail) { %>
