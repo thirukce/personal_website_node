@@ -15,7 +15,7 @@
     "express-session": "^1.18.0",
     "connect-sqlite3": "^0.9.13",
     "bcryptjs": "^2.4.3",
-    "multer": "^2.0.0-rc.4",
+    "multer": "1.4.5-lts.1",
     "sqlite3": "^5.1.7",
     "ejs": "^3.1.10",
     "express-rate-limit": "^7.4.0",

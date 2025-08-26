@@ -17,7 +17,10 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5; /* Light grey background */
+            background-image: url('<%= basePath %>/images/nature-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -26,11 +29,12 @@
         }
 
         .login-container {
-            background: #ffffff; /* White container */
+            background: rgba(255, 255, 255, 0.9); /* Semi-transparent white */
             border-radius: 20px;
             padding: 3rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px); /* Frosted glass effect */
             width: 100%;
             max-width: 400px;
             animation: fadeInUp 0.6s ease-out;
@@ -80,14 +84,14 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #80bdff;
+            border-color: #81c784; /* Green focus border */
             background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.25); /* Green focus shadow */
         }
 
         .login-button {
             width: 100%;
-            background: #007bff;
+            background: #4CAF50;
             color: white;
             border: none;
             padding: 15px;
@@ -101,8 +105,8 @@
 
         .login-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
-            background: #0069d9;
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            background: #45a049;
         }
 
         .error-message {
@@ -129,7 +133,7 @@
 
         .back-link a:hover {
             opacity: 1;
-            color: #007bff;
+            color: #4CAF50;
         }
 
         .credentials-info {
@@ -143,7 +147,7 @@
         }
 
         .credentials-info strong {
-            color: #007bff;
+            color: #4CAF50;
         }
 
         @keyframes fadeInUp {
@@ -174,7 +178,6 @@
             <h1><i class="fas fa-lock"></i> Secure Login</h1>
             <p>Access your personal dashboard</p>
         </div>
-
 
         <% if (error) { %>
             <div class="error-message">

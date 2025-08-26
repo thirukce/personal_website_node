@@ -78,18 +78,22 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            scriptSrc: ["'self'", "'unsafe-hashes'"], // Keep this line as is for now
+            // Combine the original intent with the necessary script hashes
+            scriptSrc: [
+                "'self'",
+                "'unsafe-hashes'",
+                "'sha256-QA/FIksfX1sNsodmGrqUEjjFV2RwmHeCgDudLGiBoNM='",
+                "'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU='",
+                "'sha256-cb1s2KXb6Vwrf7gzleZTBAonupdoB+PxWX4XqMsaOCA='",
+                "'sha256-nNIzcrCDgTAbdBswdLX1vTxRHuqvwXKARgmUjSRYEzQ='",
+                "'sha256-an0GuWy3FgNMLNOXAWC0ixNAboyIp4cOn0PeYbPNcV0='"
+            ],
             imgSrc: ["'self'", "data:", "https:"],
             fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
             connectSrc: ["'self'"]
         }
     }
 }));
-
-app.use((req, res, next) => {
-    res.setHeader('Content-Security-Policy', "script-src 'self' 'unsafe-hashes' 'sha256-QA/FIksfX1sNsodmGrqUEjjFV2RwmHeCgDudLGiBoNM=' 'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU=' 'sha256-cb1s2KXb6Vwrf7gzleZTBAonupdoB+PxWX4XqMsaOCA=' 'sha256-nNIzcrCDgTAbdBswdLX1vTxRHuqvwXKARgmUjSRYEzQ=' 'sha256-an0GuWy3FgNMLNOXAWC0ixNAboyIp4cOn0PeYbPNcV0='");
-    next();
-});
 
 // CORS configuration
 app.use(cors({

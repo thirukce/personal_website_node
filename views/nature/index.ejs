@@ -19,7 +19,10 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: #495057;
-            background-color: #ffffff; /* Clean white background */
+            background-image: url('<%= basePath %>/images/nature-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             min-height: 100vh;
         }
 
@@ -30,8 +33,8 @@
         }
 
         header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
             padding: 1rem 0;
             position: fixed;
             width: 100%;
@@ -49,7 +52,7 @@
         .logo {
             font-size: 1.8rem;
             font-weight: bold;
-            color: #007bff; /* Blue logo text */
+            color: #4CAF50; /* Nature green logo text */
             text-decoration: none;
         }
 
@@ -67,7 +70,7 @@
         }
 
         .nav-links a:hover {
-            color: #007bff;
+            color: #4CAF50;
         }
 
         .hero {
@@ -78,12 +81,16 @@
             text-align: center;
             color: #333;
             padding-top: 80px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); /* Subtle grey gradient */
+            background: none; /* Let body background show through */
         }
 
         .hero-content {
             max-width: 800px;
             animation: fadeInUp 1s ease-out;
+            background: rgba(255, 255, 255, 0.7); /* Add a background for readability */
+            padding: 2rem;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
         }
 
         .hero h1 {
@@ -100,7 +107,7 @@
 
         .cta-button {
             display: inline-block;
-            background: #007bff;
+            background: #4CAF50;
             color: white;
             padding: 15px 30px;
             text-decoration: none;
@@ -108,18 +115,19 @@
             font-weight: bold;
             font-size: 1.1rem;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
 
         .cta-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
-            background: #0069d9;
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            background: #45a049;
         }
 
         .features {
             padding: 80px 0;
-            background-color: #f8f9fa; /* Off-white section background */
+            background-color: rgba(248, 249, 250, 0.9); /* Semi-transparent off-white */
+            backdrop-filter: blur(10px);
         }
 
         .features-grid {
@@ -130,7 +138,7 @@
         }
 
         .feature-card {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.95); /* Slightly more opaque cards */
             padding: 2rem;
             border-radius: 15px;
             text-align: center;
@@ -145,7 +153,7 @@
         .feature-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
-            color: #007bff;
+            color: #4CAF50;
         }
 
         .feature-card h3 {
@@ -169,10 +177,11 @@
         }
 
         footer {
-            background: #343a40;
-            color: #f8f9fa;
+            background: rgba(52, 58, 64, 0.9); /* Semi-transparent dark */
+            color: #f8f9fa; /* Keep text light */
             text-align: center;
             padding: 2rem 0;
+            backdrop-filter: blur(10px);
         }
 
         @keyframes fadeInUp {
