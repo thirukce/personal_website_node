@@ -1,0 +1,282 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5; /* Light grey background */
+    min-height: 100vh;
+    color: #333;
+}
+
+.header {
+    background: #ffffff; /* White header */
+    padding: 1rem 0;
+    border-bottom: 1px solid #e0e0e0; /* Light border */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.welcome {
+    color: #333; /* Dark text */
+    font-size: 1.2rem;
+}
+
+.logout-btn {
+    background: #e9ecef; /* Light grey button */
+    color: #333; /* Dark text */
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.logout-btn:hover {
+    background: #dee2e6; /* Darker grey on hover */
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 20px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.card {
+    background: #ffffff; /* White cards */
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #e0e0e0; /* Light border */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Softer shadow */
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    color: #333; /* Dark text */
+}
+
+.card-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.add-btn {
+    background: #007bff; /* Primary blue */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.add-btn:hover {
+    background: #0056b3; /* Darker blue */
+    transform: translateY(-1px);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da; /* Standard border */
+    border-radius: 8px;
+    background: #f8f9fa; /* Very light grey input background */
+    color: #333; /* Dark text */
+    font-size: 0.9rem;
+}
+
+.form-group input::placeholder, .form-group textarea::placeholder {
+    color: #6c757d; /* Grey placeholder text */
+}
+
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    outline: none;
+    border-color: #80bdff; /* Blue focus border */
+    background: #ffffff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); /* Bootstrap-like focus shadow */
+}
+
+.submit-btn {
+    background: #28a745; /* Green success button */
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+}
+
+.submit-btn:hover {
+    background: #218838; /* Darker green */
+}
+
+.checklist-item, .note-item, .file-item {
+    background: #f8f9fa; /* Light background for items */
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #333; /* Dark text */
+    border: 1px solid #e9ecef;
+}
+
+.checklist-item.completed {
+    opacity: 0.6;
+    text-decoration: line-through;
+    background: #e9ecef;
+}
+
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: #6c757d; /* Grey action icons */
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    background: #e9ecef; /* Light grey background on hover */
+    color: #333;
+}
+
+.toggle-btn {
+    color: #28a745; /* Green for check */
+}
+
+.delete-btn {
+    color: #dc3545; /* Red for delete */
+}
+
+.note-content {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
+    white-space: pre-wrap;
+    color: #495057;
+}
+
+.file-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.file-name {
+    font-weight: bold;
+}
+
+.file-meta {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 0.2rem;
+}
+
+.upload-area {
+    border: 2px dashed #ced4da; /* Grey dashed border */
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    color: #6c757d; /* Grey text */
+    margin-bottom: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.upload-area:hover {
+    border-color: #007bff; /* Blue border on hover */
+}
+
+.upload-area input[type="file"] {
+    display: none;
+}
+
+.upload-label {
+    cursor: pointer;
+    display: block;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Ensure item lists stack vertically, fixing horizontal layout bugs */
+.checklist-items, .notes-items, .files-items, .reminders-items {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Style for profile section */
+label[for="email"] {
+    color: #333;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+input[type="datetime-local"] {
+    color-scheme: light; /* Make the date picker light-themed */
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Utility classes to replace inline styles */
+.d-inline { display: inline; }
+.flex-1 { flex: 1; }
+.empty-state-text { color: #6c757d; text-align: center; padding: 2rem; }
+.empty-state-text-sm { color: #6c757d; text-align: center; padding: 2rem 0; }
+.upload-icon { font-size: 2rem; margin-bottom: 1rem; display: block; }
+.text-success { color: #28a745; }
+.mb-2rem { margin-bottom: 2rem; }
+.btn-update-email { width: 100%; background-color: #007bff; }
+.form-help-text { color: #6c757d; text-align: center; font-size: 0.8rem; margin-top: 0.5rem; }
+.divider { border: 0; border-top: 1px solid #e0e0e0; margin-bottom: 1.5rem; }
+.card-header-flush { padding: 0; margin-bottom: 1rem; }
+.card-title-sm { font-size: 1.1rem; }
+.mt-quarter { margin-top: 0.25rem; }
+

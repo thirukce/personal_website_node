@@ -9,7 +9,7 @@ if (!fs.existsSync(buildDir)) {
 }
 
 // Build static homepage from EJS template
-ejs.renderFile('./views/index.ejs', {}, (err, html) => {
+ejs.renderFile('./views/index.ejs', { basePath: '' }, (err, html) => {
     if (err) {
         console.error('Error rendering index.ejs:', err);
         return;

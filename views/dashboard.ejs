@@ -8,279 +8,7 @@
     <link rel="icon" type="image/png" href="<%= basePath %>/images/favicon.png">
     <link rel="apple-touch-icon" href="<%= basePath %>/images/favicon.png">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5; /* Light grey background */
-            min-height: 100vh;
-            color: #333;
-        }
-
-        .header {
-            background: #ffffff; /* White header */
-            padding: 1rem 0;
-            border-bottom: 1px solid #e0e0e0; /* Light border */
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .welcome {
-            color: #333; /* Dark text */
-            font-size: 1.2rem;
-        }
-
-        .logout-btn {
-            background: #e9ecef; /* Light grey button */
-            color: #333; /* Dark text */
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .logout-btn:hover {
-            background: #dee2e6; /* Darker grey on hover */
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 20px;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-
-        .card {
-            background: #ffffff; /* White cards */
-            border-radius: 15px;
-            padding: 1.5rem;
-            border: 1px solid #e0e0e0; /* Light border */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Softer shadow */
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            color: #333; /* Dark text */
-        }
-
-        .card-title {
-            font-size: 1.3rem;
-            font-weight: bold;
-        }
-
-        .add-btn {
-            background: #007bff; /* Primary blue */
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-
-        .add-btn:hover {
-            background: #0056b3; /* Darker blue */
-            transform: translateY(-1px);
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-group input, .form-group textarea, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da; /* Standard border */
-            border-radius: 8px;
-            background: #f8f9fa; /* Very light grey input background */
-            color: #333; /* Dark text */
-            font-size: 0.9rem;
-        }
-
-        .form-group input::placeholder, .form-group textarea::placeholder {
-            color: #6c757d; /* Grey placeholder text */
-        }
-
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-            outline: none;
-            border-color: #80bdff; /* Blue focus border */
-            background: #ffffff;
-            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); /* Bootstrap-like focus shadow */
-        }
-
-        .submit-btn {
-            background: #28a745; /* Green success button */
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: background 0.3s ease;
-        }
-
-        .submit-btn:hover {
-            background: #218838; /* Darker green */
-        }
-
-        .checklist-item, .note-item, .file-item {
-            background: #f8f9fa; /* Light background for items */
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: #333; /* Dark text */
-            border: 1px solid #e9ecef;
-        }
-
-        .checklist-item.completed {
-            opacity: 0.6;
-            text-decoration: line-through;
-            background: #e9ecef;
-        }
-
-        .item-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            color: #6c757d; /* Grey action icons */
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-
-        .action-btn:hover {
-            background: #e9ecef; /* Light grey background on hover */
-            color: #333;
-        }
-
-        .toggle-btn {
-            color: #28a745; /* Green for check */
-        }
-
-        .delete-btn {
-            color: #dc3545; /* Red for delete */
-        }
-
-        .note-content {
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-            opacity: 0.8;
-            white-space: pre-wrap;
-            color: #495057;
-        }
-
-        .file-info {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-        }
-
-        .file-name {
-            font-weight: bold;
-        }
-
-        .file-meta {
-            font-size: 0.8rem;
-            opacity: 0.7;
-            margin-top: 0.2rem;
-        }
-
-        .upload-area {
-            border: 2px dashed #ced4da; /* Grey dashed border */
-            border-radius: 8px;
-            padding: 2rem;
-            text-align: center;
-            color: #6c757d; /* Grey text */
-            margin-bottom: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .upload-area:hover {
-            border-color: #007bff; /* Blue border on hover */
-        }
- 
-        .upload-area input[type="file"] {
-            display: none;
-        }
-
-        .upload-label {
-            cursor: pointer;
-            display: block;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        /* Ensure item lists stack vertically, fixing horizontal layout bugs */
-        .checklist-items, .notes-items, .files-items, .reminders-items {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Override inline styles for empty state text */
-        p[style*="color: rgba(255,255,255,0.6)"] {
-            color: #6c757d !important;
-        }
-
-        /* Style for profile section */
-        label[for="email"] {
-            color: #333;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        input[type="datetime-local"] {
-            color-scheme: light; /* Make the date picker light-themed */
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header-content {
-                flex-direction: column;
-                gap: 1rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="<%= basePath %>/css/dashboard.css">
 </head>
 <body data-session-max-age="<%= sessionMaxAge %>" data-base-path="<%= basePath %>">
     <header class="header">
@@ -321,12 +49,12 @@
                         <div class="checklist-item <%= item.completed ? 'completed' : '' %>">
                             <span><%= item.title %></span>
                             <div class="item-actions">
-                                <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/toggle" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/toggle" class="d-inline">
                                     <button type="submit" class="action-btn toggle-btn">
                                         <i class="fas fa-<%= item.completed ? 'undo' : 'check' %>"></i>
                                     </button>
                                 </form>
-                                <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/checklist/<%= item.id %>/delete" class="d-inline">
 									<button type="submit" class="action-btn delete-btn">
 										<i class="fas fa-trash"></i>
 									</button>
@@ -335,7 +63,7 @@
                         </div>
                     <% }); %>
                     <% if (checklists.length === 0) { %>
-                        <p style="color: rgba(255,255,255,0.6); text-align: center; padding: 2rem;">
+                        <p class="empty-state-text">
                             No tasks yet. Add your first task above!
                         </p>
                     <% } %>
@@ -368,7 +96,7 @@
                 <div class="notes-items">
                     <% notes.forEach(note => { %>
                         <div class="note-item">
-                            <div style="flex: 1;">
+                            <div class="flex-1">
                                 <div class="file-name"><%= note.title %></div>
                                 <div class="note-content"><%= note.content %></div>
                                 <div class="file-meta">
@@ -376,7 +104,7 @@
                                 </div>
                             </div>
                             <div class="item-actions">
-                                <form method="POST" action="<%= basePath %>/notes/<%= note.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/notes/<%= note.id %>/delete" class="d-inline">
                                     <button type="submit" class="action-btn delete-btn">
 										<i class="fas fa-trash"></i>
 									</button>
@@ -385,7 +113,7 @@
                         </div>
                     <% }); %>
                     <% if (notes.length === 0) { %>
-                        <p style="color: rgba(255,255,255,0.6); text-align: center; padding: 2rem;">
+                        <p class="empty-state-text">
                             No notes yet. Create your first note above!
                         </p>
                     <% } %>
@@ -406,7 +134,7 @@
                 <form id="upload-form" class="hidden" method="POST" action="<%= basePath %>/upload">
                     <div class="upload-area">
                         <label for="file-input" class="upload-label">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
                             Click to select file or drag and drop
                             <input type="file" id="file-input" name="file" required>
                         </label>
@@ -429,10 +157,10 @@
                                 </div>
                             </div>
                             <div class="item-actions">
-                                <a href="<%= basePath %>/download/<%= file.id %>" class="action-btn" style="color: #28a745;">
+                                <a href="<%= basePath %>/download/<%= file.id %>" class="action-btn text-success">
                                     <i class="fas fa-download"></i>
                                 </a>
-                                <form method="POST" action="<%= basePath %>/files/<%= file.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/files/<%= file.id %>/delete" class="d-inline">
                                     <button type="submit" class="action-btn delete-btn">
 										<i class="fas fa-trash"></i>
 									</button>
@@ -441,7 +169,7 @@
                         </div>
                     <% }); %>
                     <% if (files.length === 0) { %>
-                        <p style="color: rgba(255,255,255,0.6); text-align: center; padding: 2rem;">
+                        <p class="empty-state-text">
                             No files uploaded yet. Upload your first file above!
                         </p>
                     <% } %>
@@ -457,26 +185,26 @@
                 </div>
 
                 <!-- Profile Email Form -->
-                <form method="POST" action="<%= basePath %>/profile/email" style="margin-bottom: 2rem;">
+                <form method="POST" action="<%= basePath %>/profile/email" class="mb-2rem">
                     <div class="form-group">
                         <label for="email">Notification Email</label>
                         <input type="email" id="email" name="email" value="<%= userEmail || '' %>" placeholder="you@example.com" required>
                     </div>
-                    <button type="submit" class="submit-btn" style="width: 100%; background-color: #007bff;">
+                    <button type="submit" class="submit-btn btn-update-email">
                         <i class="fas fa-save"></i> Update Email
                     </button>
                     <% if (!userEmail) { %>
-                        <p style="color: #6c757d; text-align: center; font-size: 0.8rem; margin-top: 0.5rem;">
+                        <p class="form-help-text">
                             Set an email to receive reminder notifications.
                         </p>
                     <% } %>
                 </form>
 
-                <hr style="border-color: #e0e0e0; margin-bottom: 1.5rem;">
+                <hr class="divider">
 
                 <!-- Reminders Section -->
-                <div class="card-header" style="padding: 0; margin-bottom: 1rem;">
-                    <div class="card-title" style="font-size: 1.1rem;">
+                <div class="card-header card-header-flush">
+                    <div class="card-title card-title-sm">
                         <i class="fas fa-bell"></i> Reminders
                     </div>
                     <button class="add-btn" id="add-reminder-btn">
@@ -511,9 +239,9 @@
                         const isPastDue = new Date(reminder.remind_at) < new Date() && reminder.recurrence === 'none';
                         %>
                         <div class="checklist-item <%= isPastDue ? 'completed' : '' %>"> <!-- Re-using checklist-item style -->
-                            <div style="flex: 1;">
+                            <div class="flex-1">
                                 <span><%= reminder.title %></span>
-                                <div class="file-meta" style="margin-top: 0.25rem;">
+                                <div class="file-meta mt-quarter">
                                     <% if (reminder.recurrence && reminder.recurrence !== 'none') { %>
                                         <i class="fas fa-sync-alt" title="Recurring"></i> 
                                         Repeats <%= reminder.recurrence.charAt(0).toUpperCase() + reminder.recurrence.slice(1) %> •
@@ -527,7 +255,7 @@
                                 </div>
                             </div>
                             <div class="item-actions">
-                                <form method="POST" action="<%= basePath %>/reminders/<%= reminder.id %>/delete" style="display: inline;">
+                                <form method="POST" action="<%= basePath %>/reminders/<%= reminder.id %>/delete" class="d-inline">
                                     <button type="submit" class="action-btn delete-btn">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -536,7 +264,7 @@
                         </div>
                     <% }); %>
                     <% if (reminders.length === 0) { %>
-                        <p style="color: rgba(255,255,255,0.6); text-align: center; padding: 2rem 0;">
+                        <p class="empty-state-text-sm">
                             No upcoming reminders.
                         </p>
                     <% } %>

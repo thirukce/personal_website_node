@@ -77,22 +77,37 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            // Combine the original intent with the necessary script hashes
-            scriptSrc: [
-                "'self'",
-                "'unsafe-hashes'",
-                "'sha256-QA/FIksfX1sNsodmGrqUEjjFV2RwmHeCgDudLGiBoNM='",
-                "'sha256-ieoeWczDHkReVBsRBqaal5AFMlBtNjMzgwKvLqi/tSU='",
-                "'sha256-cb1s2KXb6Vwrf7gzleZTBAonupdoB+PxWX4XqMsaOCA='",
-                "'sha256-nNIzcrCDgTAbdBswdLX1vTxRHuqvwXKARgmUjSRYEzQ='",
-                "'sha256-an0GuWy3FgNMLNOXAWC0ixNAboyIp4cOn0PeYbPNcV0='"
-            ],
-            imgSrc: ["'self'", "data:", "https:"],
+            // By moving all CSS to external files, we can remove 'unsafe-inline'.
+            // This is a major security improvement and resolves corporate firewall blocks.
+            styleSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'"],
+            // Tighter image policy. Only allow images from the same origin or embedded data URIs.
+            // This removes the overly permissive 'https:' wildcard that Zscaler may flag.
+            imgSrc: ["'self'", "data:"],
             fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-            connectSrc: ["'self'"]
+            connectSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            // Prevent the site from being embedded in iframes on other sites (clickjacking).
+            frameAncestors: ["'self'"],
+            upgradeInsecureRequests: []
+        },
+    },
+    // Add a strict Permissions-Policy to disable potentially sensitive browser features.
+    // This is a strong security signal to corporate firewalls like Zscaler.
+    permissionsPolicy: {
+        policy: {
+            accelerometer: [],
+            camera: [],
+            geolocation: [],
+            gyroscope: [],
+            magnetometer: [],
+            microphone: [],
+            payment: [],
+            usb: []
         }
-    }
+    },
+    // Set a strict referrer policy.
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" }
 }));
 
 // CORS configuration
@@ -300,6 +315,15 @@ const requireAuth = (req, res, next) => {
         res.redirect(BASE_PATH + '/login');
     }
 };
+
+// --- Root Redirect Logic ---
+// If the app is running under a BASE_PATH (e.g., /admin),
+// this redirects requests from the root domain (/) to the specified BASE_PATH.
+if (BASE_PATH && BASE_PATH !== '/') {
+    app.get('/', (req, res) => {
+        res.redirect(BASE_PATH);
+    });
+}
 
 // Routes
 app.get(BASE_PATH + '/', (req, res) => {
@@ -559,36 +583,40 @@ app.post(BASE_PATH + '/profile/email', requireAuth, emailValidation, async (req,
     }
 });
 
-// A temporary route for testing email functionality
-app.get(BASE_PATH + '/test-email', requireAuth, async (req, res) => {
-    const userId = req.session.userId;
-    try {
-        const user = await dbGet('SELECT email FROM users WHERE id = ?', [userId]);
+// --- Debugging Routes (Disabled in Production) ---
+// This route is useful for testing but should not be exposed in a production environment.
+// Scanners like Zscaler may flag the presence of such test endpoints.
+if (process.env.NODE_ENV !== 'production') {
+    app.get(BASE_PATH + '/test-email', requireAuth, async (req, res) => {
+        const userId = req.session.userId;
+        try {
+            const user = await dbGet('SELECT email FROM users WHERE id = ?', [userId]);
 
-        if (!user || !user.email) {
-            return res.status(400).send('No email configured for your account. Please set one in the dashboard.');
+            if (!user || !user.email) {
+                return res.status(400).send('No email configured for your account. Please set one in the dashboard.');
+            }
+
+            if (!process.env.EMAIL_HOST) {
+                return res.status(500).send('Email service is not configured on the server. Check .env variables.');
+            }
+
+            await transporter.sendMail({
+                from: process.env.EMAIL_FROM || `"Personal Dashboard Test" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: 'SMTP Configuration Test',
+                text: 'Hello! If you received this email, your SMTP configuration is working correctly.',
+                html: '<p>Hello!</p><p>If you received this email, your SMTP configuration is working correctly.</p>',
+            });
+
+            console.log(`Test email sent successfully to ${user.email}`);
+            res.send(`Successfully sent a test email to <strong>${user.email}</strong>. Please check your inbox.`);
+
+        } catch (error) {
+            console.error('Failed to send test email:', error);
+            res.status(500).send(`Failed to send test email. Check server logs for details. Error: ${error.message}`);
         }
-
-        if (!process.env.EMAIL_HOST) {
-            return res.status(500).send('Email service is not configured on the server. Check .env variables.');
-        }
-
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM || `"Personal Dashboard Test" <${process.env.EMAIL_USER}>`,
-            to: user.email,
-            subject: 'SMTP Configuration Test',
-            text: 'Hello! If you received this email, your SMTP configuration is working correctly.',
-            html: '<p>Hello!</p><p>If you received this email, your SMTP configuration is working correctly.</p>',
-        });
-
-        console.log(`Test email sent successfully to ${user.email}`);
-        res.send(`Successfully sent a test email to <strong>${user.email}</strong>. Please check your inbox.`);
-
-    } catch (error) {
-        console.error('Failed to send test email:', error);
-        res.status(500).send(`Failed to send test email. Check server logs for details. Error: ${error.message}`);
-    }
-});
+    });
+}
 // --- Email and Scheduler Setup ---
 
 // Nodemailer transporter setup using environment variables
