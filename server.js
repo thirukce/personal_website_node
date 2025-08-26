@@ -120,6 +120,16 @@ app.use(cors({
 app.use(compression());
 app.use(morgan('combined'));
 
+// Serve sitemap.xml and robots.txt from the root, regardless of BASE_PATH.
+// This is standard practice and expected by web crawlers.
+app.get('/sitemap.xml', (req, res) => {
+    res.sendFile(path.join(publicPath, 'sitemap.xml'));
+});
+
+app.get('/robots.txt', (req, res) => {
+    res.sendFile(path.join(publicPath, 'robots.txt'));
+});
+
 // Serve static files from the 'public' directory
 app.use(BASE_PATH, express.static(publicPath));												 
 									
