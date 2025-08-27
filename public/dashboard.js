@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFormToggle('add-task-btn', 'checklist-form');
     setupFormToggle('add-note-btn', 'notes-form');
     setupFormToggle('add-file-btn', 'upload-form');
+	setupFormToggle('add-link-btn', 'link-form');											 
     setupFormToggle('add-reminder-btn', 'reminder-form');
 
     // --- Session Timeout Logic ---

@@ -131,7 +131,7 @@
                     </button>
                 </div>
 
-                <form id="upload-form" class="hidden" method="POST" action="<%= basePath %>/upload">
+                <form id="upload-form" class="hidden" method="POST" action="<%= basePath %>/upload" enctype="multipart/form-data">
                     <div class="upload-area">
                         <label for="file-input" class="upload-label">
                             <i class="fas fa-cloud-upload-alt upload-icon"></i>
@@ -172,6 +172,55 @@
                         <p class="empty-state-text">
                             No files uploaded yet. Upload your first file above!
                         </p>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Links Section -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-link"></i> My Links
+                    </div>
+					<button class="add-btn" id="add-link-btn">
+                        <i class="fas fa-plus"></i> Add Link
+                    </button>
+                </div>
+
+                <form id="link-form" class="hidden" method="POST" action="<%= basePath %>/links">
+                    <div class="form-group">
+                        <input type="text" name="title" placeholder="Link description..." required>
+                    </div>
+                    <div class="form-group">
+                        <input type="url" name="url" placeholder="https://example.com" required>
+                    </div>
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-plus"></i> Add Link
+                    </button>
+                </form>
+
+                <div class="files-items"> <!-- Re-using files-items for consistent styling -->
+                    <% links.forEach(link => { %>
+                        <div class="file-item">
+                            <div class="file-info">
+                                <div class="file-name">
+                                    <a href="<%= link.url %>" target="_blank" rel="noopener noreferrer" title="<%= link.url %>">
+                                        <i class="fas fa-external-link-alt"></i> <%= link.title %>
+                                    </a>
+                                </div>
+                                <div class="file-meta">
+                                    <i class="fas fa-clock"></i> <%= new Date(link.created_at).toLocaleDateString() %>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <form method="POST" action="<%= basePath %>/links/<%= link.id %>/delete" class="d-inline">
+                                    <button type="submit" class="action-btn delete-btn"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                    <% }); %>
+                    <% if (links.length === 0) { %>
+                        <p class="empty-state-text">No links saved yet. Add your first link above!</p>
                     <% } %>
                 </div>
             </div>

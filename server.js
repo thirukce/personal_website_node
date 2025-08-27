@@ -223,6 +223,16 @@ db.serialize(() => {
         if (!err) console.log("Added 'notified_3h' column to 'reminders' table.");
     });
 
+    // Links table
+    db.run(`CREATE TABLE IF NOT EXISTS links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )`);
+
     // Create default admin user. The password should be set in the .env file.
     // This runs only on the first start if the 'admin' user doesn't exist.
     const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
@@ -402,11 +412,12 @@ app.get(BASE_PATH + '/dashboard', requireAuth, async (req, res, next) => {
         const userId = req.session.userId;
 
         // Fetch all dashboard data in parallel for better performance
-        const [checklists, notes, files, reminders, user] = await Promise.all([
+        const [checklists, notes, files, reminders, links, user] = await Promise.all([
             dbAll('SELECT * FROM checklists WHERE user_id = ? ORDER BY created_at DESC', [userId]),
             dbAll('SELECT * FROM notes WHERE user_id = ? ORDER BY updated_at DESC', [userId]),
             dbAll('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', [userId]),
             dbAll('SELECT * FROM reminders WHERE user_id = ? ORDER BY remind_at ASC', [userId]),
+            dbAll('SELECT * FROM links WHERE user_id = ? ORDER BY created_at DESC', [userId]),
             dbGet('SELECT email FROM users WHERE id = ?', [userId])
         ]);
 
@@ -416,6 +427,7 @@ app.get(BASE_PATH + '/dashboard', requireAuth, async (req, res, next) => {
             checklists: checklists || [],
             notes: notes || [],
             files: files || [],
+            links: links || [],
             reminders: reminders || [],
             sessionMaxAge: SESSION_MAX_AGE,
             basePath: BASE_PATH
@@ -506,6 +518,47 @@ app.post(BASE_PATH + '/notes/:id/delete', requireAuth, (req, res) => {
     db.run('DELETE FROM notes WHERE id = ? AND user_id = ?', [noteId, userId], (err) => {
         res.redirect(BASE_PATH + '/dashboard');
     });
+});
+
+// Link routes with validation
+const linkValidation = [
+    body('title')
+        .trim()
+        .isLength({ min: 1, max: 200 })
+        .withMessage('Title must be 1-200 characters'),
+    body('url')
+        .trim()
+        .isURL({ require_protocol: true, protocols: ['http', 'https'] })
+        .withMessage('Must be a valid URL (e.g., https://example.com)')
+];
+
+app.post(BASE_PATH + '/links', requireAuth, linkValidation, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.redirect(BASE_PATH + '/dashboard?error=' + encodeURIComponent(errors.array()[0].msg));
+    }
+
+    const { title, url } = req.body;
+    const userId = req.session.userId;
+
+    try {
+        await dbRun('INSERT INTO links (user_id, title, url) VALUES (?, ?, ?)', [userId, title, url]);
+        res.redirect(BASE_PATH + '/dashboard');
+    } catch (err) {
+        console.error('Failed to create link:', err);
+        res.redirect(BASE_PATH + '/dashboard?error=Failed to create link');
+    }
+});
+
+app.post(BASE_PATH + '/links/:id/delete', requireAuth, async (req, res) => {
+    const linkId = req.params.id;
+    const userId = req.session.userId;
+    try {
+        await dbRun('DELETE FROM links WHERE id = ? AND user_id = ?', [linkId, userId]);
+    } catch (err) {
+        console.error(`Failed to delete link ${linkId} for user ${userId}:`, err);
+    }
+    res.redirect(BASE_PATH + '/dashboard');
 });
 
 // Reminder routes with validation
