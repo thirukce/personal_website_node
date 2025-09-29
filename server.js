@@ -572,7 +572,7 @@ const reminderValidation = [
         .toDate()
         .withMessage('Invalid date format for reminder.'),
     body('recurrence')
-        .isIn(['none', 'daily', 'weekly'])
+        .isIn(['none', 'daily', 'weekly', 'monthly', 'yearly'])
         .withMessage('Invalid recurrence type.')
 ];
 
@@ -855,6 +855,8 @@ cron.schedule('* * * * *', async () => {
             const recurrenceLogic = {
                 daily: () => nextRemindAt.setDate(nextRemindAt.getDate() + 1),
                 weekly: () => nextRemindAt.setDate(nextRemindAt.getDate() + 7),
+                monthly: () => nextRemindAt.setMonth(nextRemindAt.getMonth() + 1),
+                yearly: () => nextRemindAt.setFullYear(nextRemindAt.getFullYear() + 1),
             };
             // Keep advancing the date until it's in the future relative to the current cron job time.
             while (nextRemindAt <= now) {
